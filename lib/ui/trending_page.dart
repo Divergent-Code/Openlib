@@ -65,9 +65,12 @@ class TrendingPage extends ConsumerWidget {
                                     imageBuilder: (context, imageProvider) =>
                                         Container(
                                       decoration: BoxDecoration(
-                                        boxShadow: const [
+                                        boxShadow: [
                                           BoxShadow(
-                                              color: Colors.grey,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .outline
+                                                  .withAlpha(100),
                                               spreadRadius: 0.1,
                                               blurRadius: 1)
                                         ],
@@ -82,7 +85,7 @@ class TrendingPage extends ConsumerWidget {
                                     placeholder: (context, url) => Container(
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(5),
-                                        color: "#E3E8E9".toColor(),
+                                        color: Theme.of(context).colorScheme.surfaceContainer,
                                       ),
                                       height: imageHeight,
                                       width: imageWidth,
@@ -92,7 +95,7 @@ class TrendingPage extends ConsumerWidget {
                                         decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(5),
-                                          color: Colors.grey,
+                                          color: Theme.of(context).colorScheme.surfaceContainer,
                                         ),
                                         height: imageHeight,
                                         width: imageWidth,

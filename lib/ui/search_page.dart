@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http; // Required for the API calls (ensure p
 
 // Project imports:
 import 'package:openlib/ui/components/page_title_widget.dart';
+import 'package:openlib/ui/components/search_filters_widget.dart';
 import 'package:openlib/ui/results_page.dart';
 import 'components/snack_bar_widget.dart';
 // Import the new API Service (adjust path as necessary)
@@ -117,9 +118,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) { // WidgetRef is available via ConsumerState
     final filters = ref.watch(searchFiltersProvider);
-    final dropdownTypeValue = filters.selectedType;
-    final dropdownSortValue = filters.selectedSort;
-    final dropDownFileTypeValue = filters.selectedFileType;
     
     // Watch suggestion states
     final suggestions = ref.watch(searchSuggestionProvider); // The list of titles
@@ -142,16 +140,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 showCursor: true,
                 cursorColor: Theme.of(context).colorScheme.secondary,
                 decoration: InputDecoration(
-                  enabledBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey, width: 2),
-                    borderRadius: BorderRadius.all(Radius.circular(50)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.tertiary,
-                        width: 2),
-                    borderRadius: const BorderRadius.all(Radius.circular(50)),
-                  ),
                   suffixIcon: IconButton(
                     padding: const EdgeInsets.only(right: 5),
                     color: Theme.of(context).colorScheme.secondary,
@@ -234,132 +222,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             // -----------------------------
 
-            // Dropdown Filters (Unchanged)
-            Padding(
-              padding: const EdgeInsets.only(left: 7, right: 7, top: 19),
-              child: SizedBox(
-                width: 250,
-                child: DropdownButtonFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Type',
-                    labelStyle: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                    enabledBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey, width: 2),
-                      borderRadius: BorderRadius.all(Radius.circular(50)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.tertiary,
-                          width: 2),
-                      borderRadius: const BorderRadius.all(Radius.circular(50)),
-                    ),
-                  ),
-                  icon: const Icon(Icons.arrow_drop_down),
-                  value: dropdownTypeValue,
-                  items: typeValues.keys
-                      .toList()
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? val) {
-                    ref.read(searchFiltersProvider.notifier).setType(val ?? 'All');
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 7, right: 7, top: 19),
-              child: SizedBox(
-                width: 210,
-                child: DropdownButtonFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Sort by',
-                    labelStyle: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                    enabledBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey, width: 2),
-                      borderRadius: BorderRadius.all(Radius.circular(50)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.tertiary,
-                          width: 2),
-                      borderRadius: const BorderRadius.all(Radius.circular(50)),
-                    ),
-                  ),
-                  value: dropdownSortValue,
-                  items: sortValues.keys
-                      .toList()
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? val) {
-                    ref.read(searchFiltersProvider.notifier).setSort(val ?? 'Most Relevant');
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 7, right: 7, top: 19),
-              child: SizedBox(
-                width: 165,
-                child: DropdownButtonFormField(
-                  decoration: InputDecoration(
-                    labelText: 'File type',
-                    labelStyle: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                    enabledBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey, width: 2),
-                      borderRadius: BorderRadius.all(Radius.circular(50)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.tertiary,
-                          width: 2),
-                      borderRadius: const BorderRadius.all(Radius.circular(50)),
-                    ),
-                  ),
-                  value: dropDownFileTypeValue,
-                  items: fileType.map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? val) {
-                    ref.read(searchFiltersProvider.notifier).setFileType(val ?? 'All');
-                  },
-                ),
-              ),
-            ),
+            // Dropdown Filters (Extracted)
+            const SearchFiltersWidget(),
           ],
         ),
       ),

@@ -105,7 +105,7 @@ class BookInfoCard extends StatelessWidget {
               placeholder: (context, url) => Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(5),
-                  color: "#F8C0C8".toColor(),
+                  color: Theme.of(context).colorScheme.surfaceContainer,
                 ),
                 height: 120,
                 width: 90,
@@ -114,7 +114,7 @@ class BookInfoCard extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(5),
-                    color: "#F8C0C8".toColor(),
+                    color: Theme.of(context).colorScheme.surfaceContainer,
                   ),
                   height: 120,
                   width: 90,

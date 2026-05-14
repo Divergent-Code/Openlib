@@ -16,6 +16,10 @@ ThemeData lightTheme = ThemeData(
     secondary: secondaryColor,
     tertiary: Colors.black,
     tertiaryContainer: '#F2F2F2'.toColor(),
+    error: Colors.red,
+    surfaceContainer: Colors.grey.shade200,
+    outline: Colors.grey,
+    surface: Colors.white,
   ),
   textTheme: TextTheme(
       displayLarge: const TextStyle(
@@ -41,6 +45,28 @@ ThemeData lightTheme = ThemeData(
     selectionColor: secondaryColor,
     selectionHandleColor: secondaryColor,
   ),
+  inputDecorationTheme: InputDecorationTheme(
+    enabledBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.grey, width: 2),
+      borderRadius: BorderRadius.all(Radius.circular(50)),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.black, width: 2),
+      borderRadius: BorderRadius.all(Radius.circular(50)),
+    ),
+    filled: true,
+    fillColor: Colors.transparent,
+  ),
+  cardTheme: CardTheme(
+    color: '#F2F2F2'.toColor(),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+  ),
+  dialogTheme: DialogTheme(
+    backgroundColor: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+  ),
 );
 
 ThemeData darkTheme = ThemeData(
@@ -51,6 +77,9 @@ ThemeData darkTheme = ThemeData(
     secondary: secondaryColor,
     tertiary: Colors.white,
     tertiaryContainer: '#141414'.toColor(),
+    error: Colors.red.shade400,
+    surfaceContainer: '#1C1C1C'.toColor(),
+    outline: Colors.grey.shade700,
     surface: Colors.black,
   ),
   textTheme: TextTheme(
@@ -77,5 +106,27 @@ ThemeData darkTheme = ThemeData(
   textSelectionTheme: TextSelectionThemeData(
     selectionColor: secondaryColor,
     selectionHandleColor: secondaryColor,
+  ),
+  inputDecorationTheme: InputDecorationTheme(
+    enabledBorder: OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.grey.shade700, width: 2),
+      borderRadius: const BorderRadius.all(Radius.circular(50)),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.white, width: 2),
+      borderRadius: BorderRadius.all(Radius.circular(50)),
+    ),
+    filled: true,
+    fillColor: Colors.transparent,
+  ),
+  cardTheme: CardTheme(
+    color: '#141414'.toColor(),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+  ),
+  dialogTheme: DialogTheme(
+    backgroundColor: Colors.black,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
   ),
 );
