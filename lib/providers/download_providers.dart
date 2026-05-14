@@ -1,13 +1,15 @@
+// Dart imports:
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math';
 
+// Package imports:
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Project imports:
 import 'package:openlib/providers/constants.dart';
 import 'package:openlib/services/annas_archive.dart' show BookInfoData;
 import 'package:openlib/services/database.dart';
-import 'package:openlib/services/download_file.dart' show verifyFileCheckSum;
-import 'package:openlib/services/download_isolate.dart';
+import 'package:openlib/services/download_engine_host.dart';
 import 'package:openlib/providers/library_providers.dart'
     show myLibraryProvider, checkIdExists;
 
@@ -32,7 +34,6 @@ class DownloadTask {
   final int downloadedBytes;
   final int totalBytes;
   final bool isMirrorActive;
-  final ReceivePort? cancelPort;
   final String? errorMessage;
 
   const DownloadTask({
@@ -44,7 +45,6 @@ class DownloadTask {
     this.downloadedBytes = 0,
     this.totalBytes = 0,
     this.isMirrorActive = false,
-    this.cancelPort,
     this.errorMessage,
   });
 
@@ -55,7 +55,6 @@ class DownloadTask {
     int? downloadedBytes,
     int? totalBytes,
     bool? isMirrorActive,
-    ReceivePort? cancelPort,
     String? errorMessage,
   }) {
     return DownloadTask(
@@ -67,7 +66,6 @@ class DownloadTask {
       downloadedBytes: downloadedBytes ?? this.downloadedBytes,
       totalBytes: totalBytes ?? this.totalBytes,
       isMirrorActive: isMirrorActive ?? this.isMirrorActive,
-      cancelPort: cancelPort ?? this.cancelPort,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
@@ -99,14 +97,48 @@ class DownloadState {
 final downloadConcurrencyProvider = StateProvider<int>((ref) => 3);
 
 // ---------------------------------------------------------------------------
+// Engine host singleton provider
+// ---------------------------------------------------------------------------
+
+final _downloadEngineHostProvider = Provider<DownloadEngineHost>((ref) {
+  final host = DownloadEngineHost();
+
+  host.spawn().then((_) {
+    host.setConcurrency(ref.read(downloadConcurrencyProvider));
+  });
+
+  ref.onDispose(() {
+    host.dispose();
+  });
+
+  return host;
+});
+
+// ---------------------------------------------------------------------------
 // Notifier
 // ---------------------------------------------------------------------------
 
 class DownloadNotifier extends Notifier<DownloadState> {
-  @override
-  DownloadState build() => const DownloadState();
+  DownloadEngineHost? _host;
 
-  /// Adds a book to the queue. Starts immediately if slots are available.
+  @override
+  DownloadState build() {
+    _host = ref.watch(_downloadEngineHostProvider);
+
+    // Listen to engine events and update state.
+    _host!.events.listen(_onEngineEvent);
+
+    // Keep concurrency in sync.
+    ref.listen(downloadConcurrencyProvider, (prev, next) {
+      if (prev != next) {
+        _host?.setConcurrency(next);
+      }
+    });
+
+    return const DownloadState();
+  }
+
+  /// Adds a book to the queue.
   void enqueueDownload({
     required BookInfoData data,
     required List<String> mirrors,
@@ -120,44 +152,63 @@ class DownloadNotifier extends Notifier<DownloadState> {
     );
 
     _updateTask(data.md5, task);
-    _processQueue();
+
+    _host?.enqueue(
+      md5: data.md5,
+      format: data.format!,
+      mirrors: mirrors,
+      directory: '', // resolved asynchronously below
+    );
+
+    // Resolve directory and re-send if needed.
+    _resolveDirectoryAndEnqueue(data.md5, data.format!, mirrors);
   }
 
-  /// Pauses a running download (sends cancel to isolate).
+  Future<void> _resolveDirectoryAndEnqueue(
+    String md5,
+    String format,
+    List<String> mirrors,
+  ) async {
+    final db = MyLibraryDb.instance;
+    final directory = await db.getPreference('bookStorageDirectory') as String;
+    _host?.enqueue(
+      md5: md5,
+      format: format,
+      mirrors: mirrors,
+      directory: directory,
+    );
+  }
+
+  /// Pauses a running download.
   void pauseDownload(String md5) {
     final task = state.tasks[md5];
     if (task == null || task.status != DownloadStatus.running) return;
 
-    task.cancelPort?.send(CancelCommand());
+    _host?.pause(md5);
     _updateTask(
       md5,
-      task.copyWith(
-        status: DownloadStatus.paused,
-        cancelPort: null,
-      ),
+      task.copyWith(status: DownloadStatus.paused),
     );
-    _processQueue();
   }
 
-  /// Resumes a paused download (re-enqueues as pending).
+  /// Resumes a paused download.
   void resumeDownload(String md5) {
     final task = state.tasks[md5];
     if (task == null || task.status != DownloadStatus.paused) return;
 
+    _host?.resume(md5);
     _updateTask(
       md5,
       task.copyWith(status: DownloadStatus.pending),
     );
-    _processQueue();
   }
 
   /// Cancels a specific download and removes it from the queue.
   void cancelDownload(String md5) {
     final task = state.tasks[md5];
     if (task != null) {
-      task.cancelPort?.send(CancelCommand());
+      _host?.cancel(md5);
       dismissTask(md5);
-      _processQueue();
     }
   }
 
@@ -168,169 +219,72 @@ class DownloadNotifier extends Notifier<DownloadState> {
   }
 
   // -------------------------------------------------------------------------
-  // Private Queue Management — Concurrent
+  // Private helpers
   // -------------------------------------------------------------------------
 
   void _updateTask(String md5, DownloadTask task) {
     state = state.copyWith(tasks: {...state.tasks, md5: task});
   }
 
-  void _processQueue() {
-    final concurrency = ref.read(downloadConcurrencyProvider);
-    final runningCount =
-        state.tasks.values.where((t) => t.status == DownloadStatus.running).length;
-    final availableSlots = concurrency - runningCount;
-
-    if (availableSlots <= 0) return;
-
-    final pendingTasks = state.tasks.values
-        .where((t) => t.status == DownloadStatus.pending)
-        .take(availableSlots)
-        .toList();
-
-    for (final task in pendingTasks) {
-      _startDownload(task);
-    }
-  }
-
-  Future<void> _startDownload(DownloadTask task) async {
-    final md5 = task.book.md5;
-
-    _updateTask(
-      md5,
-      task.copyWith(
-        status: DownloadStatus.running,
-        progress: 0.0,
-        downloadedBytes: 0,
-        totalBytes: 0,
-        checksumStatus: ChecksumStatus.idle,
-        isMirrorActive: false,
-        errorMessage: null,
-      ),
-    );
-
-    // Get the storage directory
-    final db = MyLibraryDb.instance;
-    final directory = await db.getPreference('bookStorageDirectory') as String;
-
-    // Set up communication channels
-    final replyPort = ReceivePort();
-    final cancelPort = ReceivePort();
-
-    // Store the cancel port so pause/cancel can send to it
-    _updateTask(
-      md5,
-      state.tasks[md5]!.copyWith(cancelPort: cancelPort),
-    );
-
-    // Spawn the download isolate
-    try {
-      await Isolate.spawn(
-        downloadIsolateEntry,
-        DownloadParams(
-          md5: md5,
-          format: task.book.format!,
-          mirrors: task.mirrors,
-          directory: directory,
-          replyPort: replyPort.sendPort,
-          cancelPort: cancelPort.sendPort,
+  void _onEngineEvent(dynamic event) {
+    if (event is ProgressEvent) {
+      final t = state.tasks[event.md5];
+      if (t == null) return;
+      _updateTask(
+        event.md5,
+        t.copyWith(
+          status: DownloadStatus.running,
+          downloadedBytes: event.received,
+          totalBytes: event.total,
+          progress: event.total > 0 ? event.received / event.total : 0.0,
         ),
       );
-    } catch (e) {
+    } else if (event is MirrorActiveEvent) {
+      final t = state.tasks[event.md5];
+      if (t == null) return;
+      _updateTask(event.md5, t.copyWith(isMirrorActive: true));
+    } else if (event is CompleteEvent) {
+      final t = state.tasks[event.md5];
+      if (t == null) return;
       _updateTask(
-        md5,
-        state.tasks[md5]!.copyWith(
-          status: DownloadStatus.failed,
-          errorMessage: 'Failed to spawn isolate: $e',
-        ),
-      );
-      replyPort.close();
-      cancelPort.close();
-      _processQueue();
-      return;
-    }
-
-    // Listen for messages from the isolate
-    await for (final message in replyPort) {
-      if (message is StartMessage) {
-        // Download started — already marked as running
-      } else if (message is ProgressMessage) {
-        final t = state.tasks[md5];
-        if (t == null) break;
-
-        _updateTask(
-          md5,
-          t.copyWith(
-            downloadedBytes: message.received,
-            totalBytes: message.total,
-            progress: message.total > 0 ? message.received / message.total : 0.0,
-          ),
-        );
-      } else if (message is MirrorActiveMessage) {
-        final t = state.tasks[md5];
-        if (t != null) {
-          _updateTask(md5, t.copyWith(isMirrorActive: true));
-        }
-      } else if (message is CompleteMessage) {
-        await _onDownloadComplete(task.book);
-        break;
-      } else if (message is FailedMessage) {
-        final isCanceled = message.error == 'canceled';
-        _updateTask(
-          md5,
-          state.tasks[md5]!.copyWith(
-            status: isCanceled ? DownloadStatus.canceled : DownloadStatus.failed,
-            errorMessage: message.error,
-          ),
-        );
-        _processQueue();
-        break;
-      }
-    }
-
-    replyPort.close();
-    cancelPort.close();
-  }
-
-  Future<void> _onDownloadComplete(BookInfoData data) async {
-    final md5 = data.md5;
-    final t = state.tasks[md5];
-    if (t != null) {
-      _updateTask(
-        md5,
+        event.md5,
         t.copyWith(
           status: DownloadStatus.complete,
-          checksumStatus: ChecksumStatus.running,
+          progress: 1.0,
+        ),
+      );
+      _saveToLibrary(t.book);
+      ref.refresh(checkIdExists(event.md5));
+      ref.refresh(myLibraryProvider);
+    } else if (event is FailedEvent) {
+      final t = state.tasks[event.md5];
+      if (t == null) return;
+      final isCanceled = event.error == 'canceled';
+      _updateTask(
+        event.md5,
+        t.copyWith(
+          status: isCanceled ? DownloadStatus.canceled : DownloadStatus.failed,
+          errorMessage: event.error,
+        ),
+      );
+    } else if (event is ChecksumRunningEvent) {
+      final t = state.tasks[event.md5];
+      if (t == null) return;
+      _updateTask(
+        event.md5,
+        t.copyWith(checksumStatus: ChecksumStatus.running),
+      );
+    } else if (event is ChecksumDoneEvent) {
+      final t = state.tasks[event.md5];
+      if (t == null) return;
+      _updateTask(
+        event.md5,
+        t.copyWith(
+          checksumStatus:
+              event.success ? ChecksumStatus.success : ChecksumStatus.failed,
         ),
       );
     }
-
-    await _saveToLibrary(data);
-
-    ref.refresh(checkIdExists(data.md5));
-    ref.refresh(myLibraryProvider);
-
-    try {
-      final checkSum =
-          await verifyFileCheckSum(md5Hash: data.md5, format: data.format!);
-      final t2 = state.tasks[md5];
-      if (t2 != null) {
-        _updateTask(
-          md5,
-          t2.copyWith(
-            checksumStatus:
-                checkSum == true ? ChecksumStatus.success : ChecksumStatus.failed,
-          ),
-        );
-      }
-    } catch (_) {
-      final t2 = state.tasks[md5];
-      if (t2 != null) {
-        _updateTask(md5, t2.copyWith(checksumStatus: ChecksumStatus.failed));
-      }
-    }
-
-    _processQueue();
   }
 
   Future<void> _saveToLibrary(BookInfoData data) async {
