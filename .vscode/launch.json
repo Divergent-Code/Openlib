@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Openlib (Windows)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["-d", "windows"],
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Openlib (Windows) — Profile",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["-d", "windows"],
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Openlib (Android Device)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["-d", "android"],
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Openlib (Android Emulator)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["-d", "emulator"],
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Openlib (Chrome / Web)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["-d", "chrome"],
+      "flutterMode": "debug"
+    }
+  ]
+}
