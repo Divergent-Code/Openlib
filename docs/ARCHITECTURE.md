@@ -535,3 +535,69 @@ keep the table lean without a separate scheduled job.
 | 15 | 7-day TTL | 24h; 30 days; forever | Balances freshness vs. redundant fetches; mirror links rotate |
 | 16 | Stale-while-revalidate | Block on re-fetch; never re-fetch | Instant perceived load; keeps mirror links fresh |
 | 17 | Background re-fetch updates cache only (no same-session UI update) | AsyncNotifier with mid-session invalidation | Simpler; marginal same-session benefit doesn't justify complexity |
+
+---
+
+## 11. Download Queue & Background Flow
+
+> **Status:** Accepted Design | **Created:** 2026-05-14
+
+### 11.1 Purpose
+
+Implement a sequential download queue that allows users to enqueue multiple
+books while protecting fragile mirror servers from rate-limiting caused by
+concurrent connections.
+
+### 11.2 Goals
+
+- Sequential execution (only one active download at a time).
+- Foreground survival (downloads continue when minimised or navigating the UI).
+- Robust state management for individual tasks via `DownloadTask`.
+- Simple UI abstraction allowing tasks to "Run in Background" (hide the dialog).
+
+### 11.3 Non-Goals
+
+- True OS-level background services (e.g., `workmanager` or Apple NSURLSession).
+- Concurrent/parallel downloads.
+- HTTP `Range` requests for pausing/resuming (too fragile with IPFS gateways).
+
+---
+
+### 11.4 Architecture
+
+The `DownloadState` object was refactored to hold a `Map<String, DownloadTask>`
+keyed by the book's MD5 hash.
+
+```dart
+class DownloadTask {
+  final BookInfoData book;
+  final DownloadStatus status; // pending, running, complete, failed, canceled
+  // ... progress, bytes, tokens
+}
+```
+
+The `DownloadNotifier` acts as the queue manager:
+1. **`enqueueDownload`**: Adds a task as `pending` and triggers `_processQueue()`.
+2. **`_processQueue()`**: Ensures sequential execution. If `any(status == running)`, it returns. Otherwise, it starts the first `pending` task.
+3. **`cancelDownload`**: Invokes the `CancelToken`, deletes partial files via `dio.download(deleteOnError: true)`, removes the task, and triggers `_processQueue()`.
+
+---
+
+### 11.5 UI Adjustments
+
+The popup dialog (`_ShowDialog` in `action_button_widget.dart`) now explicitly
+watches a single task via `ref.watch(downloadNotifierProvider).tasks[md5]`. 
+
+If a download is taking too long, users can click **Run in Background** (which
+pops the dialog without invoking the `CancelToken`), allowing them to browse
+for and queue additional books.
+
+---
+
+### 11.6 Decision Log (Download Queue)
+
+| # | Decision | Alternatives | Reason |
+|---|---|---|---|
+| 18 | Survive minimisation only | True OS background service | Covers 95% of use cases without adding heavy native plugins |
+| 19 | Sequential queue | Concurrent queue; No queue | Protects mirrors from rate limits; safe and reliable |
+| 20 | Simple Cancel & Restart | True Pause/Resume | Anna's Archive mirrors are unreliable for HTTP Range requests |

@@ -10,7 +10,7 @@ import 'package:openlib/services/download_file.dart';
 // Enums
 // ---------------------------------------------------------------------------
 
-enum DownloadStatus { idle, running, complete, failed }
+enum DownloadStatus { pending, running, complete, failed, canceled }
 
 enum ChecksumStatus { idle, running, success, failed }
 
@@ -18,7 +18,9 @@ enum ChecksumStatus { idle, running, success, failed }
 // Unified State Object
 // ---------------------------------------------------------------------------
 
-class DownloadState {
+class DownloadTask {
+  final BookInfoData book;
+  final List<String> mirrors;
   final DownloadStatus status;
   final ChecksumStatus checksumStatus;
   final double progress;
@@ -28,8 +30,10 @@ class DownloadState {
   final CancelToken? cancelToken;
   final String? errorMessage;
 
-  const DownloadState({
-    this.status = DownloadStatus.idle,
+  const DownloadTask({
+    required this.book,
+    required this.mirrors,
+    this.status = DownloadStatus.pending,
     this.checksumStatus = ChecksumStatus.idle,
     this.progress = 0.0,
     this.downloadedBytes = 0,
@@ -39,7 +43,7 @@ class DownloadState {
     this.errorMessage,
   });
 
-  DownloadState copyWith({
+  DownloadTask copyWith({
     DownloadStatus? status,
     ChecksumStatus? checksumStatus,
     double? progress,
@@ -49,7 +53,9 @@ class DownloadState {
     CancelToken? cancelToken,
     String? errorMessage,
   }) {
-    return DownloadState(
+    return DownloadTask(
+      book: book,
+      mirrors: mirrors,
       status: status ?? this.status,
       checksumStatus: checksumStatus ?? this.checksumStatus,
       progress: progress ?? this.progress,
@@ -66,6 +72,22 @@ class DownloadState {
   String get formattedTotalBytes => bytesToFileSize(totalBytes);
 }
 
+class DownloadState {
+  final Map<String, DownloadTask> tasks;
+
+  const DownloadState({
+    this.tasks = const {},
+  });
+
+  DownloadState copyWith({
+    Map<String, DownloadTask>? tasks,
+  }) {
+    return DownloadState(
+      tasks: tasks ?? this.tasks,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Notifier
 // ---------------------------------------------------------------------------
@@ -74,73 +96,144 @@ class DownloadNotifier extends Notifier<DownloadState> {
   @override
   DownloadState build() => const DownloadState();
 
-  /// Starts the download for [data] from the given [mirrors].
-  Future<void> startDownload({
+  /// Adds a book to the queue. If it's the only one, it starts immediately.
+  void enqueueDownload({
     required BookInfoData data,
     required List<String> mirrors,
-  }) async {
-    state = state.copyWith(
-      status: DownloadStatus.running,
-      progress: 0.0,
-      downloadedBytes: 0,
-      totalBytes: 0,
-      checksumStatus: ChecksumStatus.idle,
-      isMirrorActive: false,
-      errorMessage: null,
+  }) {
+    if (state.tasks.containsKey(data.md5)) return; // Already queued
+
+    final task = DownloadTask(
+      book: data,
+      mirrors: mirrors,
+      status: DownloadStatus.pending,
+    );
+
+    _updateTask(data.md5, task);
+    _processQueue();
+  }
+
+  /// Cancels a specific download and removes it from the queue.
+  void cancelDownload(String md5) {
+    final task = state.tasks[md5];
+    if (task != null) {
+      task.cancelToken?.cancel();
+      dismissTask(md5);
+      _processQueue(); // Start next if the active one was canceled
+    }
+  }
+
+  /// Removes a completed/failed task from the map (closes UI dialogs tracking it).
+  void dismissTask(String md5) {
+    final newTasks = Map<String, DownloadTask>.from(state.tasks)..remove(md5);
+    state = state.copyWith(tasks: newTasks);
+  }
+
+  // -------------------------------------------------------------------------
+  // Private Queue Management
+  // -------------------------------------------------------------------------
+
+  void _updateTask(String md5, DownloadTask task) {
+    state = state.copyWith(tasks: {...state.tasks, md5: task});
+  }
+
+  void _processQueue() {
+    // 1. Enforce sequential downloads.
+    final isRunning =
+        state.tasks.values.any((t) => t.status == DownloadStatus.running);
+    if (isRunning) return;
+
+    // 2. Start next pending task.
+    final pendingTasks =
+        state.tasks.values.where((t) => t.status == DownloadStatus.pending);
+    if (pendingTasks.isNotEmpty) {
+      _startDownload(pendingTasks.first);
+    }
+  }
+
+  Future<void> _startDownload(DownloadTask task) async {
+    final md5 = task.book.md5;
+
+    _updateTask(
+      md5,
+      task.copyWith(
+        status: DownloadStatus.running,
+        progress: 0.0,
+        downloadedBytes: 0,
+        totalBytes: 0,
+        checksumStatus: ChecksumStatus.idle,
+        isMirrorActive: false,
+        errorMessage: null,
+      ),
     );
 
     downloadFile(
-      mirrors: mirrors,
-      md5: data.md5,
-      format: data.format!,
+      mirrors: task.mirrors,
+      md5: md5,
+      format: task.book.format!,
       onStart: () {
-        state = state.copyWith(status: DownloadStatus.running);
+        final t = state.tasks[md5];
+        if (t != null) {
+          _updateTask(md5, t.copyWith(status: DownloadStatus.running));
+        }
       },
       onProgress: (int rcv, int total) async {
-        state = state.copyWith(
-          downloadedBytes: rcv,
-          totalBytes: total,
-          progress: total > 0 ? rcv / total : 0.0,
+        final t = state.tasks[md5];
+        if (t == null) return;
+
+        _updateTask(
+          md5,
+          t.copyWith(
+            downloadedBytes: rcv,
+            totalBytes: total,
+            progress: total > 0 ? rcv / total : 0.0,
+          ),
         );
 
         if (rcv == total && total > 0) {
-          await _onDownloadComplete(data);
+          await _onDownloadComplete(t.book);
         }
       },
       cancelDownlaod: (CancelToken token) {
-        state = state.copyWith(cancelToken: token);
+        final t = state.tasks[md5];
+        if (t != null) {
+          _updateTask(md5, t.copyWith(cancelToken: token));
+        }
       },
       mirrorStatus: (bool active) {
-        state = state.copyWith(isMirrorActive: active);
+        final t = state.tasks[md5];
+        if (t != null) {
+          _updateTask(md5, t.copyWith(isMirrorActive: active));
+        }
       },
       onDownlaodFailed: (dynamic msg) {
-        state = state.copyWith(
-          status: DownloadStatus.failed,
-          errorMessage: msg.toString(),
-        );
+        final t = state.tasks[md5];
+        if (t != null) {
+          _updateTask(
+            md5,
+            t.copyWith(
+              status: DownloadStatus.failed,
+              errorMessage: msg.toString(),
+            ),
+          );
+        }
+        _processQueue(); // Unblock queue on failure
       },
     );
   }
 
-  /// Cancels the active download and resets to idle.
-  void cancelDownload() {
-    state.cancelToken?.cancel();
-    state = build();
-  }
-
-  /// Resets state back to idle. Call this from the UI after dismissing
-  /// the success or failure dialog.
-  void reset() => state = build();
-
-  // -------------------------------------------------------------------------
-  // Private helpers
-  // -------------------------------------------------------------------------
-
   Future<void> _onDownloadComplete(BookInfoData data) async {
-    state = state.copyWith(
-      status: DownloadStatus.complete,
-      checksumStatus: ChecksumStatus.running,
-    );
+    final md5 = data.md5;
+    final t = state.tasks[md5];
+    if (t != null) {
+      _updateTask(
+        md5,
+        t.copyWith(
+          status: DownloadStatus.complete,
+          checksumStatus: ChecksumStatus.running,
+        ),
+      );
+    }
 
     await _saveToLibrary(data);
 
@@ -152,13 +245,28 @@ class DownloadNotifier extends Notifier<DownloadState> {
     try {
       final checkSum =
           await verifyFileCheckSum(md5Hash: data.md5, format: data.format!);
-      state = state.copyWith(
-        checksumStatus:
-            checkSum == true ? ChecksumStatus.success : ChecksumStatus.failed,
-      );
+      final t2 = state.tasks[md5];
+      if (t2 != null) {
+        _updateTask(
+          md5,
+          t2.copyWith(
+            checksumStatus: checkSum == true
+                ? ChecksumStatus.success
+                : ChecksumStatus.failed,
+          ),
+        );
+      }
     } catch (_) {
-      state = state.copyWith(checksumStatus: ChecksumStatus.failed);
+      final t2 = state.tasks[md5];
+      if (t2 != null) {
+        _updateTask(
+          md5,
+          t2.copyWith(checksumStatus: ChecksumStatus.failed),
+        );
+      }
     }
+
+    _processQueue(); // Unblock queue on success
   }
 
   Future<void> _saveToLibrary(BookInfoData data) async {

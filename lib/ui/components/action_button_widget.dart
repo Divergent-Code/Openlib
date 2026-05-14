@@ -116,19 +116,31 @@ class _ShowDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final downloadState = ref.watch(downloadNotifierProvider);
+    final task = downloadState.tasks[data.md5];
     final notifier = ref.read(downloadNotifierProvider.notifier);
 
-    // Kick off the download on first build if still idle
+    // Enqueue if not present
+    if (task == null) {
+      Future.microtask(
+          () => notifier.enqueueDownload(data: data, mirrors: mirrors));
+    }
+
+    // Listen to changes for THIS task to handle completion/failure popups
     ref.listen<DownloadState>(downloadNotifierProvider, (prev, next) {
-      final isDone = next.status == DownloadStatus.complete &&
-          (next.checksumStatus == ChecksumStatus.success ||
-              next.checksumStatus == ChecksumStatus.failed);
+      final t = next.tasks[data.md5];
+      if (t == null) return;
+
+      final isDone = t.status == DownloadStatus.complete &&
+          (t.checksumStatus == ChecksumStatus.success ||
+              t.checksumStatus == ChecksumStatus.failed);
 
       if (isDone) {
         Future.delayed(const Duration(seconds: 1), () {
-          Navigator.of(context).pop();
-          notifier.reset();
-          if (next.checksumStatus == ChecksumStatus.failed) {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+          notifier.dismissTask(data.md5);
+          if (t.checksumStatus == ChecksumStatus.failed) {
             _showWarningFileDialog(context);
           } else {
             showSnackBar(
@@ -137,19 +149,19 @@ class _ShowDialog extends ConsumerWidget {
         });
       }
 
-      if (next.status == DownloadStatus.failed) {
-        Navigator.of(context).pop();
-        notifier.reset();
+      if (t.status == DownloadStatus.failed) {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        notifier.dismissTask(data.md5);
         showSnackBar(
             context: context,
-            message: next.errorMessage ?? 'Download failed.');
+            message: t.errorMessage ?? 'Download failed.');
       }
     });
 
-    // Start download when dialog first appears
-    if (downloadState.status == DownloadStatus.idle) {
-      Future.microtask(
-          () => notifier.startDownload(data: data, mirrors: mirrors));
+    if (task == null) {
+      return const SizedBox(); // Wait for enqueue
     }
 
     return Stack(
@@ -204,7 +216,7 @@ class _ShowDialog extends ConsumerWidget {
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          downloadState.isMirrorActive
+                          task.isMirrorActive
                               ? const Icon(Icons.check_circle,
                                   size: 15, color: Colors.green)
                               : SizedBox(
@@ -240,9 +252,9 @@ class _ShowDialog extends ConsumerWidget {
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          switch (downloadState.status) {
-                            DownloadStatus.idle => Icon(
-                                Icons.timer_sharp,
+                          switch (task.status) {
+                            DownloadStatus.pending => Icon(
+                                Icons.queue_sharp,
                                 size: 15,
                                 color: Theme.of(context)
                                     .colorScheme
@@ -263,10 +275,16 @@ class _ShowDialog extends ConsumerWidget {
                             DownloadStatus.failed =>
                               const Icon(Icons.check_circle,
                                   size: 15, color: Colors.green),
+                            DownloadStatus.canceled => const Icon(
+                                Icons.cancel,
+                                size: 15,
+                                color: Colors.grey),
                           },
                           const SizedBox(width: 3),
                           Text(
-                            "Downloading",
+                            task.status == DownloadStatus.pending
+                                ? "Queued for download"
+                                : "Downloading file",
                             style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
@@ -337,7 +355,7 @@ class _ShowDialog extends ConsumerWidget {
                       Padding(
                         padding: const EdgeInsets.all(8),
                         child: Text(
-                          '${downloadState.formattedDownloadedBytes}/${downloadState.formattedTotalBytes}',
+                          '${task.formattedDownloadedBytes}/${task.formattedTotalBytes}',
                           style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
@@ -363,35 +381,59 @@ class _ShowDialog extends ConsumerWidget {
                             .colorScheme
                             .tertiary
                             .withAlpha(50),
-                        value: downloadState.progress,
+                        value: task.progress,
                         minHeight: 4,
                       ),
                     ),
                   ),
-                  // Cancel button
+                  // Buttons row
                   Padding(
                     padding: const EdgeInsets.all(10.0),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8)),
+                          onPressed: () {
+                            // Dismiss dialog, leave download running in queue
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                          child: Text(
+                            'Run in Background',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .tertiary
+                                    .withAlpha(180)),
+                          ),
+                        ),
                         TextButton(
                           style: TextButton.styleFrom(
                               backgroundColor:
                                   Theme.of(context).colorScheme.secondary,
-                              textStyle: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              )),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8)),
                           onPressed: () {
-                            notifier.cancelDownload();
-                            Navigator.of(context).pop();
+                            notifier.cancelDownload(data.md5);
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            }
                           },
-                          child: const Padding(
-                            padding: EdgeInsets.all(3.0),
-                            child: Text('Cancel'),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   )
