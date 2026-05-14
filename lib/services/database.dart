@@ -69,12 +69,17 @@ class MyLibraryDb {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (Database db, int version) async {
         await db.execute(
             'CREATE TABLE mybooks (id TEXT PRIMARY KEY, title TEXT,author TEXT,thumbnail TEXT,link TEXT,publisher TEXT,info TEXT,format TEXT,description TEXT)');
         await db.execute(
             'CREATE TABLE preferences (name TEXT PRIMARY KEY,value TEXT)');
+        await db.execute(
+            'CREATE TABLE bookcache ('
+            'md5 TEXT PRIMARY KEY, title TEXT, author TEXT, thumbnail TEXT,'
+            'publisher TEXT, info TEXT, link TEXT, format TEXT, mirror TEXT,'
+            'description TEXT, cachedAt INTEGER)');
         if (isMobile || true) {
           // TODO: Breaks getBrowserOptions() on Mac
           await db.execute(
@@ -93,6 +98,13 @@ class MyLibraryDb {
         if (isPreferenceTableExist.isEmpty) {
           await db.execute(
               'CREATE TABLE preferences (name TEXT PRIMARY KEY,value TEXT)');
+        }
+        if (oldVersion < 6) {
+          await db.execute(
+              'CREATE TABLE IF NOT EXISTS bookcache ('
+              'md5 TEXT PRIMARY KEY, title TEXT, author TEXT, thumbnail TEXT,'
+              'publisher TEXT, info TEXT, link TEXT, format TEXT, mirror TEXT,'
+              'description TEXT, cachedAt INTEGER)');
         }
         if (isMobile && isTableExist.isEmpty) {
           await db.execute(
@@ -273,5 +285,38 @@ class MyLibraryDb {
     } else {
       return "";
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Book detail cache
+  // ---------------------------------------------------------------------------
+
+  /// Write or overwrite a cached book detail entry.
+  Future<void> cacheBookInfo(Map<String, dynamic> bookMap) async {
+    final dbInstance = await instance.database;
+    await dbInstance.insert(
+      'bookcache',
+      bookMap,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Returns the raw row map (including `cachedAt`) or null on cache miss.
+  Future<Map<String, dynamic>?> getCachedBookInfo(String md5) async {
+    final dbInstance = await instance.database;
+    final rows = await dbInstance
+        .query('bookcache', where: 'md5 = ?', whereArgs: [md5]);
+    if (rows.isEmpty) return null;
+    return Map<String, dynamic>.from(rows.first);
+  }
+
+  /// Delete all cache entries with a `cachedAt` value older than [cutoffMs].
+  Future<void> evictExpiredBookCache(int cutoffMs) async {
+    final dbInstance = await instance.database;
+    await dbInstance.delete(
+      'bookcache',
+      where: 'cachedAt < ?',
+      whereArgs: [cutoffMs],
+    );
   }
 }

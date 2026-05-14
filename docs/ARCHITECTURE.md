@@ -415,3 +415,123 @@ error: (err, _) {
 | 11 | `AllMirrorsFailedException` typed exception | String error message | Enables type-safe UI pattern-matching; no string parsing |
 | 12 | `AnnasArchive` accepts `baseUrl` via constructor | Static field; factory method | Minimal change; enables per-mirror instantiation in the loop |
 
+---
+
+## 10. Data Persistence & Caching Strategy
+
+> **Status:** Accepted Design | **Created:** 2026-05-14
+
+### 10.1 Purpose
+
+Cache `BookInfoData` (book detail pages) in SQLite to eliminate redundant
+network fetches for stable data, using a stale-while-revalidate pattern so
+users always see data instantly on revisit.
+
+### 10.2 Goals
+
+- Instant perceived load on revisit to any previously viewed book detail page.
+- 7-day TTL keeps mirror links fresh without excessive network calls.
+- Silent background re-fetch on stale hit; no user-visible disruption.
+
+### 10.3 Non-Goals
+
+- Caching search result lists.
+- User-visible cache management UI.
+- Real-time UI update during the same session from background re-fetch.
+
+---
+
+### 10.4 Model Serialization (`lib/models/book.dart`)
+
+```dart
+class BookInfoData extends BookData {
+  Map<String, dynamic> toMap() => {
+    'md5': md5, 'title': title, 'author': author,
+    'thumbnail': thumbnail, 'publisher': publisher,
+    'info': info, 'link': link, 'format': format,
+    'mirror': mirror, 'description': description,
+    'cachedAt': DateTime.now().millisecondsSinceEpoch,
+  };
+
+  factory BookInfoData.fromMap(Map<String, dynamic> map) => BookInfoData(
+    md5: map['md5'], title: map['title'], ...
+  );
+}
+```
+
+TTL constant in `constants.dart`:
+```dart
+const Duration bookDetailCacheTtl = Duration(days: 7);
+```
+
+---
+
+### 10.5 Database Schema (version 5 → 6)
+
+New table added via `onCreate` and `onUpgrade`:
+
+```sql
+CREATE TABLE bookcache (
+  md5         TEXT PRIMARY KEY,
+  title       TEXT,
+  author      TEXT,
+  thumbnail   TEXT,
+  publisher   TEXT,
+  info        TEXT,
+  link        TEXT,
+  format      TEXT,
+  mirror      TEXT,
+  description TEXT,
+  cachedAt    INTEGER   -- Unix ms timestamp for TTL comparison
+)
+```
+
+Three new methods on `MyLibraryDb`:
+- `cacheBookInfo(BookInfoData)` — upsert with `ConflictAlgorithm.replace`
+- `getCachedBookInfo(String md5)` — returns raw map (includes `cachedAt`) or null
+- `evictExpiredBookCache(int cutoffMs)` — deletes rows older than cutoff
+
+---
+
+### 10.6 Repository: Stale-While-Revalidate
+
+```
+bookInfo(url) called
+  ↓
+getCachedBookInfo(md5)
+  ├── null (miss)  → _fetchAndCache(url) → return
+  └── hit
+        ├── fresh  → return BookInfoData.fromMap(cached)
+        └── stale  → return BookInfoData.fromMap(cached) immediately
+                      + _refreshInBackground(url) [fire and forget]
+```
+
+Background re-fetch failures are silently swallowed — stale data already
+returned; failure is non-fatal.
+
+`_fetchAndCache` also calls `evictExpiredBookCache` opportunistically to
+keep the table lean without a separate scheduled job.
+
+---
+
+### 10.7 UI Behaviour
+
+| Scenario | Behaviour |
+|---|---|
+| First visit, no cache | Spinner → fetch (2–5s) → data shown → cached |
+| Revisit within 7 days | Instant — no spinner, no network call |
+| Revisit after 7 days | Instant stale data → background re-fetch for next visit |
+| All mirrors fail, no cache | `AllMirrorsFailedException` → `ServiceUnavailableWidget` |
+| All mirrors fail, stale cache | Stale data shown instantly; background failure silent |
+
+---
+
+### 10.8 Decision Log (Caching)
+
+| # | Decision | Alternatives | Reason |
+|---|---|---|---|
+| 13 | Cache `BookInfoData` only | Search results; both | Stable key (md5), high revisit rate, manageable permutations |
+| 14 | SQLite `bookcache` table | In-memory Map; separate DB | Survives restarts; no new dependencies |
+| 15 | 7-day TTL | 24h; 30 days; forever | Balances freshness vs. redundant fetches; mirror links rotate |
+| 16 | Stale-while-revalidate | Block on re-fetch; never re-fetch | Instant perceived load; keeps mirror links fresh |
+| 17 | Background re-fetch updates cache only (no same-session UI update) | AsyncNotifier with mid-session invalidation | Simpler; marginal same-session benefit doesn't justify complexity |

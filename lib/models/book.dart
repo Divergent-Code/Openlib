@@ -46,4 +46,33 @@ class BookInfoData extends BookData {
     required this.mirror,
     required this.description,
   });
+
+  /// Serialize to a SQLite row. Includes a `cachedAt` timestamp (Unix ms).
+  Map<String, dynamic> toMap() => {
+        'md5': md5,
+        'title': title,
+        'author': author,
+        'thumbnail': thumbnail,
+        'publisher': publisher,
+        'info': info,
+        'link': link,
+        'format': format,
+        'mirror': mirror,
+        'description': description,
+        'cachedAt': DateTime.now().millisecondsSinceEpoch,
+      };
+
+  /// Deserialize from a SQLite row produced by [toMap].
+  factory BookInfoData.fromMap(Map<String, dynamic> map) => BookInfoData(
+        title: map['title'] ?? '',
+        author: map['author'],
+        thumbnail: map['thumbnail'],
+        publisher: map['publisher'],
+        info: map['info'],
+        link: map['link'] ?? '',
+        md5: map['md5'] ?? '',
+        format: map['format'],
+        mirror: map['mirror'],
+        description: map['description'],
+      );
 }

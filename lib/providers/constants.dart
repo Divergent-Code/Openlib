@@ -39,3 +39,8 @@ const List<String> annasArchiveMirrors = [
   'https://annas-archive.gs',
 ];
 
+/// How long a cached book detail page is considered fresh before a
+/// background re-fetch is triggered (stale-while-revalidate).
+const Duration bookDetailCacheTtl = Duration(days: 7);
+
+
