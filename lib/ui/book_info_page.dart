@@ -6,39 +6,19 @@ import 'package:flutter/material.dart';
 // import 'package:flutter/scheduler.dart';
 
 // Package imports:
-import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openlib/services/share_book.dart';
 // import 'package:flutter_svg/svg.dart';
 
 // Project imports:
 import 'package:openlib/services/annas_archive.dart' show BookInfoData;
-import 'package:openlib/services/database.dart';
-import 'package:openlib/services/download_file.dart';
 import 'package:openlib/ui/components/book_info_widget.dart';
 import 'package:openlib/ui/components/action_button_widget.dart';
 import 'package:openlib/ui/components/error_widget.dart';
 import 'package:openlib/ui/components/file_buttons_widget.dart';
 import 'package:openlib/ui/components/snack_bar_widget.dart';
 import 'package:openlib/ui/webview_page.dart';
-import 'package:openlib/controllers/download_controller.dart';
-
-import 'package:openlib/state/state.dart'
-    show
-        bookInfoProvider,
-        totalFileSizeInBytes,
-        downloadedFileSizeInBytes,
-        downloadProgressProvider,
-        getTotalFileSize,
-        getDownloadedFileSize,
-        cancelCurrentDownload,
-        mirrorStatusProvider,
-        ProcessState,
-        CheckSumProcessState,
-        downloadState,
-        checkSumState,
-        checkIdExists,
-        myLibraryProvider;
+import 'package:openlib/state/state.dart' show bookInfoProvider;
 
 class BookInfoPage extends ConsumerWidget {
   const BookInfoPage({super.key, required this.url});
