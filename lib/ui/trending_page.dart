@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Project imports:
 import 'package:openlib/ui/components/error_widget.dart';
 import 'package:openlib/ui/results_page.dart';
+import 'package:openlib/ui/components/book_grid_item.dart';
 import 'extensions.dart';
 
 import 'package:openlib/state/state.dart'
@@ -42,7 +43,11 @@ class TrendingPage extends ConsumerWidget {
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                        return InkWell(
+                        return BookGridItem(
+                          title: data[index].title!,
+                          thumbnail: data[index].thumbnail!,
+                          imageHeight: imageHeight,
+                          imageWidth: imageWidth,
                           onTap: () {
                             ref.read(searchFiltersProvider.notifier).disableFilters();
                             Navigator.push(context, MaterialPageRoute(
@@ -51,75 +56,6 @@ class TrendingPage extends ConsumerWidget {
                                   searchQuery: data[index].title!);
                             }));
                           },
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: double.infinity,
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  CachedNetworkImage(
-                                    height: imageHeight,
-                                    width: imageWidth,
-                                    imageUrl: data[index].thumbnail!,
-                                    imageBuilder: (context, imageProvider) =>
-                                        Container(
-                                      decoration: BoxDecoration(
-                                        boxShadow: [
-                                          BoxShadow(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .outline
-                                                  .withAlpha(100),
-                                              spreadRadius: 0.1,
-                                              blurRadius: 1)
-                                        ],
-                                        borderRadius: const BorderRadius.all(
-                                            Radius.circular(5)),
-                                        image: DecorationImage(
-                                          image: imageProvider,
-                                          fit: BoxFit.fill,
-                                        ),
-                                      ),
-                                    ),
-                                    placeholder: (context, url) => Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(5),
-                                        color: Theme.of(context).colorScheme.surfaceContainer,
-                                      ),
-                                      height: imageHeight,
-                                      width: imageWidth,
-                                    ),
-                                    errorWidget: (context, url, error) {
-                                      return Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(5),
-                                          color: Theme.of(context).colorScheme.surfaceContainer,
-                                        ),
-                                        height: imageHeight,
-                                        width: imageWidth,
-                                        child: const Center(
-                                          child: Icon(Icons.image_rounded),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: SizedBox(
-                                      width: imageWidth,
-                                      child: Text(
-                                        data[index].title!,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .displayMedium,
-                                        maxLines: 2,
-                                      ),
-                                    ),
-                                  ),
-                                ]),
-                          ),
                         );
                       },
                       childCount: data.length,
