@@ -11,7 +11,7 @@ import 'package:openlib/ui/results_page.dart';
 import 'extensions.dart';
 
 import 'package:openlib/state/state.dart'
-    show getTrendingBooks, enableFiltersState;
+    show getTrendingBooks, searchFiltersProvider;
 
 class TrendingPage extends ConsumerWidget {
   const TrendingPage({super.key});
@@ -44,7 +44,7 @@ class TrendingPage extends ConsumerWidget {
                       (BuildContext context, int index) {
                         return InkWell(
                           onTap: () {
-                            ref.read(enableFiltersState.notifier).state = false;
+                            ref.read(searchFiltersProvider.notifier).disableFilters();
                             Navigator.push(context, MaterialPageRoute(
                                 builder: (BuildContext context) {
                               return ResultPage(

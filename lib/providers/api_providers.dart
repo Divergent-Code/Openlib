@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openlib/services/annas_archive.dart';
 import 'package:openlib/services/goodreads.dart';
 import 'package:openlib/services/open_library.dart';
-import 'package:openlib/providers/search_providers.dart';
+import 'package:openlib/providers/search_providers.dart'
+    show searchFiltersProvider;
 
 final getTrendingBooks = FutureProvider<List<TrendingBookData>>((ref) async {
   GoodReads goodReads = GoodReads();
@@ -38,12 +39,13 @@ final searchProvider = FutureProvider.family
   if (searchQuery.isEmpty) return [];
 
   final AnnasArchive annasArchive = AnnasArchive();
+  final filters = ref.watch(searchFiltersProvider);
   List<BookData> data = await annasArchive.searchBooks(
       searchQuery: searchQuery,
-      content: ref.watch(getTypeValue),
-      sort: ref.watch(getSortValue),
-      fileType: ref.watch(getFileTypeValue),
-      enableFilters: ref.watch(enableFiltersState));
+      content: filters.typeValue,
+      sort: filters.sortValue,
+      fileType: filters.fileTypeValue,
+      enableFilters: filters.filtersEnabled);
   return data;
 });
 

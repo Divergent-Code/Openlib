@@ -11,7 +11,7 @@ import 'package:openlib/ui/extensions.dart';
 import 'package:openlib/ui/results_page.dart';
 import 'package:openlib/ui/components/error_widget.dart';
 import 'package:openlib/state/state.dart'
-    show getSubCategoryTypeList, enableFiltersState;
+    show getSubCategoryTypeList, searchFiltersProvider;
 
 import 'package:openlib/constants/categories_data.dart';
 
@@ -207,8 +207,8 @@ class CategoryListingPage extends ConsumerWidget {
                           (BuildContext context, int index) {
                             return InkWell(
                               onTap: () {
-                                ref.read(enableFiltersState.notifier).state =
-                                    false;
+                                ref.read(searchFiltersProvider.notifier)
+                                    .disableFilters();
                                 Navigator.push(context, MaterialPageRoute(
                                     builder: (BuildContext context) {
                                   return ResultPage(

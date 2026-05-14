@@ -15,14 +15,10 @@ import 'package:openlib/services/google_suggest_api.dart';
 
 import 'package:openlib/state/state.dart'
     show
-        searchQueryProvider,
-        selectedTypeState,
-        selectedSortState,
-        selectedFileTypeState,
+        searchFiltersProvider,
         typeValues,
         fileType,
-        sortValues,
-        enableFiltersState;
+        sortValues;
 
 // ====================================================================
 // Suggestion Providers (New)
@@ -54,14 +50,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void initState() {
     super.initState();
     // Initialize controller with current state value
-    _searchController = TextEditingController(text: ref.read(searchQueryProvider));
+    _searchController = TextEditingController(
+        text: ref.read(searchFiltersProvider).query);
     
     // Listener to update the TextField when state changes (e.g., when a suggestion is tapped)
-    ref.listenManual(searchQueryProvider, (previous, next) {
+    ref.listenManual(searchFiltersProvider.select((s) => s.query),
+        (previous, next) {
       if (_searchController.text != next) {
         _searchController.text = next;
-        // Move cursor to the end
-        _searchController.selection = TextSelection.fromPosition(TextPosition(offset: next.length));
+        _searchController.selection = TextSelection.fromPosition(
+            TextPosition(offset: next.length));
       }
     });
   }
@@ -93,7 +91,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _onSearchQueryChanged(String value) {
     // 1. Update the Riverpod state immediately
-    ref.read(searchQueryProvider.notifier).state = value;
+    ref.read(searchFiltersProvider.notifier).setQuery(value);
 
     // 2. Debounce the API call to limit requests while the user is typing
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -103,11 +101,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   void onSubmit(BuildContext context) {
-    final searchQuery = ref.read(searchQueryProvider);
+    final searchQuery = ref.read(searchFiltersProvider).query;
     if (searchQuery.isNotEmpty) {
-      // Clear suggestions list before navigating
       ref.read(searchSuggestionProvider.notifier).state = [];
-      ref.read(enableFiltersState.notifier).state = true;
+      ref.read(searchFiltersProvider.notifier).enableFilters();
       Navigator.push(context,
           MaterialPageRoute(builder: (BuildContext context) {
         return ResultPage(searchQuery: searchQuery);
@@ -119,9 +116,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) { // WidgetRef is available via ConsumerState
-    final dropdownTypeValue = ref.watch(selectedTypeState);
-    final dropdownSortValue = ref.watch(selectedSortState);
-    final dropDownFileTypeValue = ref.watch(selectedFileTypeState);
+    final filters = ref.watch(searchFiltersProvider);
+    final dropdownTypeValue = filters.selectedType;
+    final dropdownSortValue = filters.selectedSort;
+    final dropDownFileTypeValue = filters.selectedFileType;
     
     // Watch suggestion states
     final suggestions = ref.watch(searchSuggestionProvider); // The list of titles
@@ -221,7 +219,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         leading: const Icon(Icons.book, size: 18),
                         onTap: () {
                           // 1. Update the state with the selected suggestion
-                          ref.read(searchQueryProvider.notifier).state = suggestion;
+                          ref.read(searchFiltersProvider.notifier).setQuery(suggestion);
                           
                           // 2. Clear the suggestion list
                           ref.read(searchSuggestionProvider.notifier).state = [];
@@ -275,7 +273,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     );
                   }).toList(),
                   onChanged: (String? val) {
-                    ref.read(selectedTypeState.notifier).state = val ?? '';
+                    ref.read(searchFiltersProvider.notifier).setType(val ?? 'All');
                   },
                 ),
               ),
@@ -317,7 +315,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     );
                   }).toList(),
                   onChanged: (String? val) {
-                    ref.read(selectedSortState.notifier).state = val ?? '';
+                    ref.read(searchFiltersProvider.notifier).setSort(val ?? 'Most Relevant');
                   },
                 ),
               ),
@@ -357,8 +355,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     );
                   }).toList(),
                   onChanged: (String? val) {
-                    ref.read(selectedFileTypeState.notifier).state =
-                        val ?? 'All';
+                    ref.read(searchFiltersProvider.notifier).setFileType(val ?? 'All');
                   },
                 ),
               ),
