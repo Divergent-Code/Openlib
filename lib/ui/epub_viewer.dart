@@ -16,7 +16,7 @@ import 'package:openlib/ui/components/snack_bar_widget.dart';
 import 'package:openlib/state/state.dart'
     show
         filePathProvider,
-        saveEpubState,
+        libraryNotifierProvider,
         getBookPosition,
         openEpubWithExternalAppProvider;
 
@@ -127,7 +127,7 @@ class _EpubViewerState extends ConsumerState<EpubViewer> {
   @override
   void deactivate() {
     if (Platform.isAndroid || Platform.isIOS) {
-      saveEpubState(widget.fileName, epubConf, ref);
+      ref.read(libraryNotifierProvider.notifier).saveEpubPosition(widget.fileName, epubConf);
     }
     super.deactivate();
   }

@@ -18,7 +18,7 @@ import 'package:openlib/state/state.dart'
         filePathProvider,
         pdfCurrentPage,
         totalPdfPage,
-        savePdfState,
+        libraryNotifierProvider,
         openPdfWithExternalAppProvider,
         getBookPosition;
 
@@ -104,7 +104,7 @@ class _PdfViewerState extends ConsumerState<PdfViewer> {
   @override
   void deactivate() {
     if (Platform.isAndroid || Platform.isIOS) {
-      savePdfState(widget.fileName, ref);
+      ref.read(libraryNotifierProvider.notifier).savePdfPosition(widget.fileName);
     }
     super.deactivate();
   }

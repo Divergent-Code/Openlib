@@ -4,15 +4,14 @@ import 'package:openlib/services/files.dart';
 import 'package:openlib/providers/constants.dart';
 import 'package:openlib/providers/reader_providers.dart';
 
-MyLibraryDb dataBase = MyLibraryDb.instance;
 
 final myLibraryProvider = FutureProvider((ref) async {
-  return dataBase.getAll();
+  return MyLibraryDb.instance.getAll();
 });
 
 final checkIdExists =
     FutureProvider.family.autoDispose<bool, String>((ref, id) async {
-  return await dataBase.checkIdExists(id);
+  return await MyLibraryDb.instance.checkIdExists(id);
 });
 
 final deleteFileFromMyLib =
@@ -28,16 +27,26 @@ final filePathProvider =
 
 final getBookPosition =
     FutureProvider.family.autoDispose<String?, String>((ref, fileName) async {
-  return await dataBase.getBookState(fileName);
+  return await MyLibraryDb.instance.getBookState(fileName);
 });
 
-Future<void> savePdfState(String fileName, WidgetRef ref) async {
-  String position = ref.watch(pdfCurrentPage).toString();
-  await dataBase.saveBookState(fileName, position);
+// ---------------------------------------------------------------------------
+// Notifier — replaces savePdfState() and saveEpubState() free functions
+// ---------------------------------------------------------------------------
+
+class LibraryNotifier extends Notifier<void> {
+  @override
+  void build() {}
+
+  Future<void> savePdfPosition(String fileName) async {
+    final page = ref.read(pdfCurrentPage);
+    await MyLibraryDb.instance.saveBookState(fileName, page.toString());
+  }
+
+  Future<void> saveEpubPosition(String fileName, String? position) async {
+    await MyLibraryDb.instance.saveBookState(fileName, position ?? '');
+  }
 }
 
-Future<void> saveEpubState(
-    String fileName, String? position, WidgetRef ref) async {
-  String pos = position ?? '';
-  await dataBase.saveBookState(fileName, pos);
-}
+final libraryNotifierProvider =
+    NotifierProvider<LibraryNotifier, void>(LibraryNotifier.new);
