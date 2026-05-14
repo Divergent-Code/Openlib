@@ -7,11 +7,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 // Project imports:
 import 'package:openlib/state/state.dart' as app_state;
+import 'package:openlib/state/state.dart' show AllMirrorsFailedException;
 import 'package:openlib/ui/book_info_page.dart';
 import 'package:openlib/ui/components/book_card_widget.dart';
 import 'package:openlib/ui/components/error_widget.dart';
-// NOTE: Assuming the class INSIDE this file is named TitleText.
-import 'package:openlib/ui/components/page_title_widget.dart'; 
+import 'package:openlib/ui/components/service_unavailable_widget.dart';
+import 'package:openlib/ui/components/page_title_widget.dart';
 import 'package:openlib/ui/extensions.dart';
 
 // A constant for the 'No Results Found' text color for better theming/readability.
@@ -129,6 +130,14 @@ class ResultPage extends ConsumerWidget {
         // ERROR STATE
         // ====================================================================
         error: (error, stackTrace) {
+          if (error is AllMirrorsFailedException) {
+            return ServiceUnavailableWidget(
+              onRetry: () {
+                // ignore: unused_result
+                ref.refresh(app_state.searchProvider(searchQuery));
+              },
+            );
+          }
           return CustomErrorWidget(
             error: error,
             stackTrace: stackTrace,

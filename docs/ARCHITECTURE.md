@@ -244,3 +244,174 @@ Widgets in `lib/ui/` **must** follow these rules:
 | 5 | `downloadNotifierProvider` is non-auto-disposing | Auto-dispose | Download must survive widget navigation |
 | 6 | State resets via explicit `reset()` call | Auto-reset; reset on new download start | UI controls lifecycle; prevents accidental state flashes |
 | 7 | Computed getters replace derived `StateProvider`s | Keep derived providers | Reduces provider count; logic co-located with data |
+
+---
+
+## 9. Service Layer Abstraction
+
+> **Status:** Accepted Design | **Created:** 2026-05-14
+
+### 9.1 Purpose
+
+Decouple the search and book-detail feature from a single hardcoded `AnnasArchive`
+class by introducing a `BookSearchRepository` abstraction with automatic mirror
+fallback and graceful degradation when all mirrors are exhausted.
+
+### 9.2 Goals
+
+- Provide resilience against individual mirror outages via an ordered fallback chain.
+- Surface a distinct "Service Unavailable" UI (not a generic error) when all mirrors fail.
+- Move `BookData`/`BookInfoData` models into a source-agnostic `lib/models/` layer.
+- Inject the repository via Riverpod — fully testable with fake implementations.
+
+### 9.3 Non-Goals
+
+- User-configurable mirror lists (future enhancement).
+- Aggregating results from multiple independent sources in parallel.
+- Changes to the existing `TrendingBooksImpl` pattern.
+
+---
+
+### 9.4 Updated Directory Structure
+
+```
+lib/
+├── constants/
+├── models/                        # NEW — source-agnostic data classes
+│   └── book.dart                  # BookData, BookInfoData
+├── providers/
+│   ├── api_providers.dart         # Updated — injects BookSearchRepository
+│   └── ... (others unchanged)
+├── services/
+│   ├── annas_archive.dart         # Updated — accepts baseUrl via constructor
+│   ├── book_search_repository.dart  # NEW — abstract class + AnnasArchiveRepository
+│   └── ... (others unchanged)
+├── state/
+│   └── state.dart                 # Barrel — adds models/book.dart export
+└── ui/
+    └── components/
+        └── service_unavailable_widget.dart  # NEW — distinct degraded UI
+```
+
+---
+
+### 9.5 Mirror Configuration (`constants.dart`)
+
+```dart
+const List<String> annasArchiveMirrors = [
+  'https://annas-archive.se',
+  'https://annas-archive.org',
+  'https://annas-archive.gs',
+];
+```
+
+Mirror order matters — the first URL is the primary. The list is the single place
+to update when a mirror goes offline.
+
+---
+
+### 9.6 Repository Interface & Implementation
+
+```dart
+// Abstract contract
+abstract class BookSearchRepository {
+  Future<List<BookData>> searchBooks({
+    required String searchQuery,
+    String content,
+    String sort,
+    String fileType,
+    bool enableFilters,
+  });
+
+  Future<BookInfoData> bookInfo({required String url});
+}
+
+// Concrete implementation with mirror fallback
+class AnnasArchiveRepository implements BookSearchRepository {
+  @override
+  Future<List<BookData>> searchBooks({...}) async {
+    for (final mirror in annasArchiveMirrors) {
+      try {
+        return await AnnasArchive(baseUrl: mirror).searchBooks(...);
+      } on DioException catch (_) {
+        continue;
+      }
+    }
+    throw const AllMirrorsFailedException();
+  }
+
+  @override
+  Future<BookInfoData> bookInfo({required String url}) async {
+    for (final mirror in annasArchiveMirrors) {
+      try {
+        final mirrorUrl = url.replaceFirst(RegExp(r'https://[^/]+'), mirror);
+        return await AnnasArchive(baseUrl: mirror).bookInfo(url: mirrorUrl);
+      } on DioException catch (_) {
+        continue;
+      }
+    }
+    throw const AllMirrorsFailedException();
+  }
+}
+
+// Typed exception — distinguishes total failure from query errors
+class AllMirrorsFailedException implements Exception {
+  const AllMirrorsFailedException();
+  @override
+  String toString() => 'AllMirrorsFailedException: all known mirrors are unreachable.';
+}
+
+// Riverpod registration
+final bookSearchRepositoryProvider = Provider<BookSearchRepository>(
+  (ref) => AnnasArchiveRepository(),
+);
+```
+
+---
+
+### 9.7 Provider Injection (`api_providers.dart`)
+
+```dart
+// Before
+final AnnasArchive annasArchive = AnnasArchive();
+List<BookData> data = await annasArchive.searchBooks(...);
+
+// After
+final repository = ref.watch(bookSearchRepositoryProvider);
+List<BookData> data = await repository.searchBooks(...);
+```
+
+---
+
+### 9.8 Degraded UI
+
+`AllMirrorsFailedException` propagates through the `FutureProvider` as an
+`AsyncError`. The `results_page.dart` error handler pattern-matches on the
+exception type:
+
+```dart
+error: (err, _) {
+  if (err is AllMirrorsFailedException) {
+    return ServiceUnavailableWidget(
+      onRetry: () => ref.refresh(searchProvider(searchQuery)),
+    );
+  }
+  return CustomErrorWidget(error: err, stackTrace: _);
+},
+```
+
+`ServiceUnavailableWidget` shows a distinct icon, message
+("All sources are currently unreachable"), and a Retry button.
+
+---
+
+### 9.9 Decision Log (Service Layer)
+
+| # | Decision | Alternatives Considered | Reason Chosen |
+|---|---|---|---|
+| 8 | `BookSearchRepository` only; leave `TrendingBooksImpl` untouched | Unified `BookRepository` | `TrendingBooksImpl` already works and has its own fallback logic |
+| 9 | Models in `lib/models/book.dart` | Keep in service; re-export barrel | True source-agnosticism; ready for caching serialisation |
+| 10 | Mirror list in `constants.dart` | Hardcoded in repository; user-configurable | Config stays separate from logic; single update point |
+| 11 | `AllMirrorsFailedException` typed exception | String error message | Enables type-safe UI pattern-matching; no string parsing |
+| 12 | `AnnasArchive` accepts `baseUrl` via constructor | Static field; factory method | Minimal change; enables per-mirror instantiation in the loop |
+

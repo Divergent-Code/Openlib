@@ -30,3 +30,12 @@ class FileName {
 
   FileName({required this.md5, required this.format});
 }
+
+// Ordered list of Anna's Archive mirrors.
+// The repository tries each in sequence; update this list when a mirror changes.
+const List<String> annasArchiveMirrors = [
+  'https://annas-archive.se',
+  'https://annas-archive.org',
+  'https://annas-archive.gs',
+];
+
