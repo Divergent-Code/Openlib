@@ -9,6 +9,7 @@ import 'dart:convert';
 
 // Project imports:
 import 'package:openlib/models/book.dart';
+import 'package:openlib/models/book_format.dart';
 
 // ====================================================================
 // ANNA'S ARCHIVE SERVICE
@@ -31,16 +32,18 @@ class AnnasArchive {
     return pathSegments.isNotEmpty ? pathSegments.last : '';
   }
 
-  String getFormat(String info) {
+  /// Parse the format from the info string returned by Anna's Archive.
+  /// Returns the canonical [BookFormat] enum value.
+  BookFormat getFormat(String info) {
     final infoLower = info.toLowerCase();
     if (infoLower.contains('pdf')) {
-      return 'pdf';
+      return BookFormat.pdf;
     } else if (infoLower.contains('cbr')) {
-      return "cbr";
+      return BookFormat.cbr;
     } else if (infoLower.contains('cbz')) {
-      return "cbz";
+      return BookFormat.cbz;
     }
-    return "epub";
+    return BookFormat.epub;
   }
 
   // Helper function to safely parse potential NaN/Infinity to prevent crash
@@ -190,7 +193,7 @@ class AnnasArchive {
       info: info,
       link: url,
       md5: getMd5(url),
-      format: getFormat(info),
+      format: getFormat(info).name, // ← now returns enum .name
       mirror: mirror,
       description: description,
     );

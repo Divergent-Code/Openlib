@@ -3,14 +3,10 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:open_file/open_file.dart';
-
 // Project imports:
-import 'package:openlib/services/files.dart' show getFilePath;
+import 'package:openlib/ui/components/book_reader_dispatcher.dart'
+    show openBookByFormat;
 import 'package:openlib/ui/components/delete_dialog_widget.dart';
-import 'package:openlib/ui/components/snack_bar_widget.dart';
-import 'package:openlib/ui/epub_viewer.dart' show launchEpubViewer;
-import 'package:openlib/ui/pdf_viewer.dart' show launchPdfViewer;
 
 class FileOpenAndDeleteButtons extends ConsumerWidget {
   final String id;
@@ -40,15 +36,12 @@ class FileOpenAndDeleteButtons extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.primary,
                 )),
             onPressed: () async {
-              if (format == 'pdf') {
-                await launchPdfViewer(
-                    fileName: '$id.$format', context: context, ref: ref);
-              } else if (format == 'epub') {
-                await launchEpubViewer(
-                    fileName: '$id.$format', context: context, ref: ref);
-              } else {
-                await openCbrAndCbz(fileName: '$id.$format', context: context);
-              }
+              await openBookByFormat(
+                fileName: '$id.$format',
+                format: format,
+                context: context,
+                ref: ref,
+              );
             },
             child: const Padding(
               padding: EdgeInsets.fromLTRB(17, 8, 17, 8),
@@ -98,15 +91,4 @@ class FileOpenAndDeleteButtons extends ConsumerWidget {
   }
 }
 
-Future<void> openCbrAndCbz(
-    {required String fileName, required BuildContext context}) async {
-  try {
-    String path = await getFilePath(fileName);
-    await OpenFile.open(path, linuxByProcess: true);
-  } catch (e) {
-    // ignore: avoid_print
-    // print(e);
-    // ignore: use_build_context_synchronously
-    showSnackBar(context: context, message: 'Unable to open file!');
-  }
-}
+
