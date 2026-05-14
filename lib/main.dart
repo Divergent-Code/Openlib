@@ -19,6 +19,9 @@ import 'package:openlib/ui/search_page.dart';
 import 'package:openlib/ui/settings_page.dart';
 import 'package:openlib/ui/themes.dart';
 
+import 'package:openlib/ui/components/download_manager_sheet.dart'
+    show showDownloadManagerSheet;
+
 import 'package:openlib/services/files.dart'
     show moveFilesToAndroidInternalStorage;
 import 'package:openlib/state/state.dart'
@@ -29,6 +32,7 @@ import 'package:openlib/state/state.dart'
         openEpubWithExternalAppProvider,
         userAgentProvider,
         cookieProvider;
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,7 +147,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               height: _showExpandedHeader ? kToolbarHeight : 0,
               child: AppBar(
                 backgroundColor: Theme.of(context).colorScheme.surface,
-                title: const Text("Openlib"),
+                title: const Text('Openlib'),
+                actions: [
+                  if (selectedIndex == 3)
+                    IconButton(
+                      icon: const Icon(Icons.download_outlined),
+                      tooltip: 'Download Manager',
+                      onPressed: () => showDownloadManagerSheet(context, ref),
+                    ),
+                ],
                 titleTextStyle:
                     Theme.of(context).textTheme.displayLarge,
               ),
