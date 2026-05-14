@@ -271,6 +271,10 @@ class _ShowDialog extends ConsumerWidget {
                                   strokeCap: StrokeCap.round,
                                 ),
                               ),
+                            DownloadStatus.paused => const Icon(
+                                Icons.pause_circle,
+                                size: 15,
+                                color: Colors.orange),
                             DownloadStatus.complete ||
                             DownloadStatus.failed =>
                               const Icon(Icons.check_circle,
@@ -305,7 +309,7 @@ class _ShowDialog extends ConsumerWidget {
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          switch (downloadState.checksumStatus) {
+                          switch (task.checksumStatus) {
                             ChecksumStatus.idle => Icon(
                                 Icons.timer_sharp,
                                 size: 15,
