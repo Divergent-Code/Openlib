@@ -12,7 +12,7 @@ import 'package:openlib/services/share_book.dart';
 // import 'package:flutter_svg/svg.dart';
 
 // Project imports:
-import 'package:openlib/services/annas_archieve.dart' show BookInfoData;
+import 'package:openlib/services/annas_archive.dart' show BookInfoData;
 import 'package:openlib/services/database.dart';
 import 'package:openlib/services/download_file.dart';
 import 'package:openlib/ui/components/book_info_widget.dart';
@@ -20,6 +20,7 @@ import 'package:openlib/ui/components/error_widget.dart';
 import 'package:openlib/ui/components/file_buttons_widget.dart';
 import 'package:openlib/ui/components/snack_bar_widget.dart';
 import 'package:openlib/ui/webview_page.dart';
+import 'package:openlib/controllers/download_controller.dart';
 
 import 'package:openlib/state/state.dart'
     show
@@ -267,70 +268,21 @@ Future<void> downloadFileWidget(WidgetRef ref, BuildContext context,
       builder: (BuildContext context) {
         return _ShowDialog(title: data.title);
       });
-  // print(mirrors);
-  downloadFile(
-      mirrors: mirrors,
-      md5: data.md5,
-      format: data.format!,
-      onStart: () {
-        ref.read(downloadState.notifier).state = ProcessState.running;
-      },
-      onProgress: (int rcv, int total) async {
-        if (ref.read(totalFileSizeInBytes) != total) {
-          ref.read(totalFileSizeInBytes.notifier).state = total;
-        }
-        ref.read(downloadedFileSizeInBytes.notifier).state = rcv;
-        ref.read(downloadProgressProvider.notifier).state = rcv / total;
 
-        if (rcv / total == 1.0) {
-          MyLibraryDb dataBase = MyLibraryDb.instance;
-
-          await dataBase.insert(MyBook(
-              id: data.md5,
-              title: data.title,
-              author: data.author,
-              thumbnail: data.thumbnail,
-              link: data.link,
-              publisher: data.publisher,
-              info: data.info,
-              format: data.format,
-              description: data.description));
-
-          ref.read(downloadState.notifier).state = ProcessState.complete;
-          ref.read(checkSumState.notifier).state = CheckSumProcessState.running;
-
-          try {
-            final checkSum = await verifyFileCheckSum(
-                md5Hash: data.md5, format: data.format!);
-            if (checkSum == true) {
-              ref.read(checkSumState.notifier).state =
-                  CheckSumProcessState.success;
-            } else {
-              ref.read(checkSumState.notifier).state =
-                  CheckSumProcessState.failed;
-            }
-          } catch (_) {
-            ref.read(checkSumState.notifier).state =
-                CheckSumProcessState.failed;
-          }
-          // ignore: unused_result
-          ref.refresh(checkIdExists(data.md5));
-          // ignore: unused_result
-          ref.refresh(myLibraryProvider);
-          // ignore: use_build_context_synchronously
-          showSnackBar(context: context, message: 'Book has been downloaded!');
-        }
-      },
-      cancelDownlaod: (CancelToken downloadToken) {
-        ref.read(cancelCurrentDownload.notifier).state = downloadToken;
-      },
-      mirrorStatus: (val) {
-        ref.read(mirrorStatusProvider.notifier).state = val;
-      },
-      onDownlaodFailed: (msg) {
-        Navigator.of(context).pop();
-        showSnackBar(context: context, message: msg.toString());
-      });
+  DownloadController.startDownload(
+    ref: ref,
+    data: data,
+    mirrors: mirrors,
+    onSuccess: () {
+      // ignore: use_build_context_synchronously
+      showSnackBar(context: context, message: 'Book has been downloaded!');
+    },
+    onFail: (String msg) {
+      Navigator.of(context).pop();
+      // ignore: use_build_context_synchronously
+      showSnackBar(context: context, message: msg);
+    },
+  );
 }
 
 class _ShowDialog extends ConsumerWidget {

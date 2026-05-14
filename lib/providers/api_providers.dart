@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openlib/services/annas_archieve.dart';
+import 'package:openlib/services/annas_archive.dart';
 import 'package:openlib/services/goodreads.dart';
 import 'package:openlib/services/open_library.dart';
 import 'package:openlib/providers/search_providers.dart';
@@ -37,8 +37,8 @@ final searchProvider = FutureProvider.family
     .autoDispose<List<BookData>, String>((ref, searchQuery) async {
   if (searchQuery.isEmpty) return [];
 
-  final AnnasArchieve annasArchieve = AnnasArchieve();
-  List<BookData> data = await annasArchieve.searchBooks(
+  final AnnasArchive annasArchive = AnnasArchive();
+  List<BookData> data = await annasArchive.searchBooks(
       searchQuery: searchQuery,
       content: ref.watch(getTypeValue),
       sort: ref.watch(getSortValue),
@@ -49,7 +49,7 @@ final searchProvider = FutureProvider.family
 
 final bookInfoProvider =
     FutureProvider.family<BookInfoData, String>((ref, url) async {
-  final AnnasArchieve annasArchieve = AnnasArchieve();
-  BookInfoData data = await annasArchieve.bookInfo(url: url);
+  final AnnasArchive annasArchive = AnnasArchive();
+  BookInfoData data = await annasArchive.bookInfo(url: url);
   return data;
 });
