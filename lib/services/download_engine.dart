@@ -46,6 +46,10 @@ class SetConcurrencyCommand extends EngineCommand {
   SetConcurrencyCommand(this.concurrency);
 }
 
+class PauseAllCommand extends EngineCommand {}
+
+class ResumeAllCommand extends EngineCommand {}
+
 // ---------------------------------------------------------------------------
 // Message protocol: Engine → Host
 // ---------------------------------------------------------------------------
@@ -200,6 +204,28 @@ class _DownloadEngine {
 
       case SetConcurrencyCommand(:final concurrency):
         _concurrency = concurrency;
+        _processQueue();
+
+      case PauseAllCommand():
+        for (final md5 in List<String>.from(_running)) {
+          final job = _jobs[md5];
+          if (job != null && job.status == _JobStatus.running) {
+            job.cancelToken?.cancel();
+            job.status = _JobStatus.paused;
+            _running.remove(md5);
+            _emit(FailedEvent(md5, 'canceled'));
+          }
+        }
+
+      case ResumeAllCommand():
+        for (final entry in _jobs.entries) {
+          final job = entry.value;
+          if (job.status == _JobStatus.paused) {
+            job.status = _JobStatus.pending;
+            job.error = null;
+            if (!_queue.contains(entry.key)) _queue.add(entry.key);
+          }
+        }
         _processQueue();
     }
   }

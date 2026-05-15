@@ -69,6 +69,9 @@ class DownloadEngineHost {
     _send(SetConcurrencyCommand(concurrency));
   }
 
+  void pauseAll() => _send(PauseAllCommand());
+  void resumeAll() => _send(ResumeAllCommand());
+
   /// Kills the isolate. Used mainly for testing or app shutdown.
   void dispose() {
     _isolate?.kill(priority: Isolate.immediate);

@@ -121,6 +121,10 @@ final _downloadEngineHostProvider = Provider<DownloadEngineHost>((ref) {
 class DownloadNotifier extends Notifier<DownloadState> {
   DownloadEngineHost? _host;
 
+  /// Exposes the underlying engine host so external systems (e.g. storage
+  /// migration) can pause/resume all downloads.
+  DownloadEngineHost get engineHost => _host!;
+
   @override
   DownloadState build() {
     _host = ref.watch(_downloadEngineHostProvider);

@@ -9,7 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openlib/services/download_engine_host.dart';
 import 'package:openlib/services/files.dart';
+import 'package:openlib/services/storage_migration.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // Project imports:
@@ -21,7 +23,8 @@ import 'package:openlib/state/state.dart'
     show
         themeModeProvider,
         openPdfWithExternalAppProvider,
-        openEpubWithExternalAppProvider;
+        openEpubWithExternalAppProvider,
+        downloadNotifierProvider;
 
 Future<void> requestStoragePermission() async {
   bool permissionGranted = false;
@@ -140,31 +143,67 @@ class SettingsPage extends ConsumerWidget {
               ],
             ),
             _PaddedContainer(
-                onClick: () async {
-                  final currentDirectory =
-                      await dataBase.getPreference('bookStorageDirectory');
-                  String? pickedDirectory =
-                      await FilePicker.platform.getDirectoryPath();
-                  if (pickedDirectory == null) {
-                    return;
-                  }
-                  await requestStoragePermission();
-                  // Attempt moving existing books to the new directory
-                  moveFolderContents(currentDirectory, pickedDirectory);
-                  dataBase.savePreference(
+              onClick: () async {
+                final currentDirectory =
+                    await dataBase.getPreference('bookStorageDirectory');
+                String? pickedDirectory =
+                    await FilePicker.platform.getDirectoryPath();
+                if (pickedDirectory == null || pickedDirectory == currentDirectory) {
+                  return;
+                }
+                await requestStoragePermission();
+
+                if (!context.mounted) return;
+
+                // Show progress dialog.
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (ctx) => const _MigrationProgressDialog(),
+                );
+
+                final engine = ref.read(downloadNotifierProvider.notifier).engineHost;
+
+                final result = await StorageMigration.migrate(
+                  from: currentDirectory,
+                  to: pickedDirectory,
+                  engine: engine,
+                  onProgress: (moved, total) {
+                    // Dialog is stateless; we could use a provider for progress,
+                    // but for simplicity we just let it spin.
+                  },
+                );
+
+                if (!context.mounted) return;
+
+                // Dismiss progress dialog.
+                Navigator.of(context, rootNavigator: true).pop();
+
+                if (result == MigrationResult.success) {
+                  await dataBase.savePreference(
                       'bookStorageDirectory', pickedDirectory);
-                },
-                children: [
-                  Text(
-                    "Change storage path",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.tertiary,
-                    ),
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Storage path updated')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Failed to move books. Please try again.')),
+                  );
+                }
+              },
+              children: [
+                Text(
+                  "Change storage path",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.tertiary,
                   ),
-                  Icon(Icons.folder),
-                ]),
+                ),
+                const Icon(Icons.folder),
+              ],
+            ),
             _PaddedContainer(
               onClick: () {
                 Navigator.push(context,
@@ -217,6 +256,32 @@ class _PaddedContainer extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MigrationProgressDialog extends StatelessWidget {
+  const _MigrationProgressDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            'Moving books to new location...',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.tertiary,
+            ),
+          ),
+        ],
       ),
     );
   }
