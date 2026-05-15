@@ -12,5 +12,6 @@
   "dart.flutterHotReloadOnSave": "all",
   "dart.flutterHotRestartOnSave": false,
   "dart.debugExternalPackageLibraries": false,
-  "dart.debugSdkLibraries": false
+  "dart.debugSdkLibraries": false,
+  "cmake.sourceDirectory": "C:/Users/onika/GitHub/Openlib/linux"
 }
