@@ -1,5 +1,3 @@
-// Dart imports:
-import 'dart:io';
 
 // Package imports:
 import 'package:sqflite/sqflite.dart';
@@ -65,7 +63,6 @@ class MyLibraryDb {
   Future<Database> _initDatabase() async {
     final databasePath = await getDatabasesPath();
     final path = '$databasePath/mylibrary.db';
-    final bool isMobile = Platform.isAndroid || Platform.isIOS;
 
     return await openDatabase(
       path,
@@ -80,12 +77,10 @@ class MyLibraryDb {
             'md5 TEXT PRIMARY KEY, title TEXT, author TEXT, thumbnail TEXT,'
             'publisher TEXT, info TEXT, link TEXT, format TEXT, mirror TEXT,'
             'description TEXT, cachedAt INTEGER)');
-        if (isMobile) {
-          await db.execute(
-              'CREATE TABLE bookposition (fileName TEXT PRIMARY KEY,position TEXT)');
-          await db.execute(
-              'CREATE TABLE browserOptions (name TEXT PRIMARY KEY,value TEXT)');
-        }
+        await db.execute(
+            'CREATE TABLE IF NOT EXISTS bookposition (fileName TEXT PRIMARY KEY,position TEXT)');
+        await db.execute(
+            'CREATE TABLE IF NOT EXISTS browserOptions (name TEXT PRIMARY KEY,value TEXT)');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         List<dynamic> isTableExist = await db.query('sqlite_master',
