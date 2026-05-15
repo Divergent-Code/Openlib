@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openlib/ui/components/page_title_widget.dart';
-import 'package:openlib/ui/extensions.dart';
+
 import 'package:openlib/ui/results_page.dart';
 import 'package:openlib/ui/components/error_widget.dart';
 import 'package:openlib/state/state.dart' show getSubCategoryTypeList, searchFiltersProvider;

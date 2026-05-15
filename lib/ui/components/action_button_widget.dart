@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openlib/services/annas_archive.dart' show BookInfoData;
+import 'package:openlib/models/book.dart' show BookInfoData;
 import 'package:openlib/ui/components/file_buttons_widget.dart';
 import 'package:openlib/ui/components/snack_bar_widget.dart';
 import 'package:openlib/ui/webview_page.dart';
@@ -64,6 +64,7 @@ class _ActionButtonWidgetState extends ConsumerState<ActionButtonWidget> {
                       }));
 
                       if (result != null) {
+                        if (!context.mounted) return;
                         await _downloadFileWidget(
                             ref, context, widget.data, result);
                       }
@@ -136,6 +137,7 @@ class _ShowDialog extends ConsumerWidget {
 
       if (isDone) {
         Future.delayed(const Duration(seconds: 1), () {
+          if (!context.mounted) return;
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
@@ -150,6 +152,7 @@ class _ShowDialog extends ConsumerWidget {
       }
 
       if (t.status == DownloadStatus.failed) {
+        if (!context.mounted) return;
         if (Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
         }

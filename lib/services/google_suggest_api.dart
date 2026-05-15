@@ -1,6 +1,7 @@
 // lib/services/google_suggest_api.dart
 
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 class GoogleSuggestApi {
@@ -35,11 +36,11 @@ class GoogleSuggestApi {
         }
         return [];
       } else {
-        print('Google Suggest Error: Status ${response.statusCode}');
+        debugPrint('Google Suggest Error: Status ${response.statusCode}');
         return ['Suggestion Error'];
       }
     } catch (e) {
-      print('Network Error: $e');
+      debugPrint('Network Error: $e');
       return ['Network Error'];
     }
   }

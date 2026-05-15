@@ -1,14 +1,20 @@
 // Dart imports:
-import 'dart:io';
 import 'dart:math';
 
 // Package imports:
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Project imports:
-import 'package:openlib/providers/constants.dart';
-import 'package:openlib/services/annas_archive.dart' show BookInfoData;
+import 'package:openlib/models/book.dart' show BookInfoData;
 import 'package:openlib/services/database.dart';
+import 'package:openlib/services/download_engine.dart'
+    show
+        ProgressEvent,
+        MirrorActiveEvent,
+        CompleteEvent,
+        FailedEvent,
+        ChecksumRunningEvent,
+        ChecksumDoneEvent;
 import 'package:openlib/services/download_engine_host.dart';
 import 'package:openlib/providers/library_providers.dart'
     show myLibraryProvider, checkIdExists;
@@ -258,7 +264,9 @@ class DownloadNotifier extends Notifier<DownloadState> {
         ),
       );
       _saveToLibrary(t.book);
+      // ignore: unused_result
       ref.refresh(checkIdExists(event.md5));
+      // ignore: unused_result
       ref.refresh(myLibraryProvider);
     } else if (event is FailedEvent) {
       final t = state.tasks[event.md5];

@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Project imports:
 import 'package:openlib/providers/download_providers.dart'
     show
-        DownloadState,
         DownloadTask,
         DownloadStatus,
         downloadNotifierProvider,

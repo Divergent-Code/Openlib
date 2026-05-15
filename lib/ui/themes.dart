@@ -45,24 +45,24 @@ ThemeData lightTheme = ThemeData(
     selectionColor: secondaryColor,
     selectionHandleColor: secondaryColor,
   ),
-  inputDecorationTheme: InputDecorationTheme(
-    enabledBorder: const OutlineInputBorder(
+  inputDecorationTheme: const InputDecorationTheme(
+    enabledBorder: OutlineInputBorder(
       borderSide: BorderSide(color: Colors.grey, width: 2),
       borderRadius: BorderRadius.all(Radius.circular(50)),
     ),
-    focusedBorder: const OutlineInputBorder(
+    focusedBorder: OutlineInputBorder(
       borderSide: BorderSide(color: Colors.black, width: 2),
       borderRadius: BorderRadius.all(Radius.circular(50)),
     ),
     filled: true,
     fillColor: Colors.transparent,
   ),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     color: '#F2F2F2'.toColor(),
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
   ),
-  dialogTheme: DialogTheme(
+  dialogTheme: DialogThemeData(
     backgroundColor: Colors.white,
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -119,12 +119,12 @@ ThemeData darkTheme = ThemeData(
     filled: true,
     fillColor: Colors.transparent,
   ),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     color: '#141414'.toColor(),
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
   ),
-  dialogTheme: DialogTheme(
+  dialogTheme: DialogThemeData(
     backgroundColor: Colors.black,
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),

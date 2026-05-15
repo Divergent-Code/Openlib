@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:epub_view/epub_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_file/open_file.dart';
-import 'package:openlib/services/database.dart';
+
 
 // Project imports:
 import 'package:openlib/services/files.dart' show getFilePath;
@@ -26,7 +26,6 @@ Future<void> launchEpubViewer({
   required WidgetRef ref,
 }) async {
   if (Platform.isAndroid || Platform.isIOS) {
-    MyLibraryDb dataBase = MyLibraryDb.instance;
     String path = await getFilePath(fileName);
     bool openWithExternalApp = ref.watch(openEpubWithExternalAppProvider);
 
@@ -109,7 +108,7 @@ class EpubViewer extends ConsumerStatefulWidget {
   final String fileName;
 
   @override
-  _EpubViewerState createState() => _EpubViewerState();
+  ConsumerState<EpubViewer> createState() => _EpubViewerState();
 }
 
 class _EpubViewerState extends ConsumerState<EpubViewer> {

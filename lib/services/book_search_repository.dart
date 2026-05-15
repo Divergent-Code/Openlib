@@ -48,7 +48,6 @@ class AnnasArchiveRepository implements BookSearchRepository {
     String fileType = '',
     bool enableFilters = true,
   }) async {
-    DioException? lastError;
     for (final mirror in annasArchiveMirrors) {
       try {
         return await AnnasArchive(baseUrl: mirror).searchBooks(
@@ -58,8 +57,7 @@ class AnnasArchiveRepository implements BookSearchRepository {
           fileType: fileType,
           enableFilters: enableFilters,
         );
-      } on DioException catch (e) {
-        lastError = e;
+      } on DioException catch (_) {
         continue;
       }
     }
@@ -99,7 +97,7 @@ class AnnasArchiveRepository implements BookSearchRepository {
 
   /// Fire-and-forget background refresh. Failures are silently swallowed.
   void _refreshInBackground(String url) {
-    _fetchAndCache(url).catchError((_) {});
+    _fetchAndCache(url).catchError((Object _) => throw _);
   }
 
   /// Fetches from mirrors, writes to cache, evicts stale entries, returns result.

@@ -9,8 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openlib/services/download_engine_host.dart';
-import 'package:openlib/services/files.dart';
 import 'package:openlib/services/storage_migration.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -51,7 +49,7 @@ Future<void> requestStoragePermission() async {
       permissionGranted = false;
     }
   }
-  print("Storage permission status: $permissionGranted");
+  debugPrint("Storage permission status: $permissionGranted");
 }
 
 class SettingsPage extends ConsumerWidget {
@@ -82,7 +80,7 @@ class SettingsPage extends ConsumerWidget {
                 Switch(
                   // This bool value toggles the switch.
                   value: ref.watch(themeModeProvider) == ThemeMode.dark,
-                  activeColor: Colors.red,
+                  activeThumbColor: Colors.red,
                   onChanged: (bool value) {
                     ref.read(themeModeProvider.notifier).state =
                         value == true ? ThemeMode.dark : ThemeMode.light;
@@ -109,7 +107,7 @@ class SettingsPage extends ConsumerWidget {
                 Switch(
                   // This bool value toggles the switch.
                   value: ref.watch(openPdfWithExternalAppProvider),
-                  activeColor: Colors.red,
+                  activeThumbColor: Colors.red,
                   onChanged: (bool value) {
                     ref.read(openPdfWithExternalAppProvider.notifier).state =
                         value;
@@ -133,7 +131,7 @@ class SettingsPage extends ConsumerWidget {
                   value: ref.watch(
                     openEpubWithExternalAppProvider,
                   ),
-                  activeColor: Colors.red,
+                  activeThumbColor: Colors.red,
                   onChanged: (bool value) {
                     ref.read(openEpubWithExternalAppProvider.notifier).state =
                         value;
@@ -182,6 +180,7 @@ class SettingsPage extends ConsumerWidget {
                 if (result == MigrationResult.success) {
                   await dataBase.savePreference(
                       'bookStorageDirectory', pickedDirectory);
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Storage path updated')),
                   );

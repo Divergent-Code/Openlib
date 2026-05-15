@@ -1,11 +1,7 @@
-// Flutter imports:
-import 'package:flutter/material.dart';
-
 // Package imports:
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart' as dom;
-import 'dart:convert';
 
 // Project imports:
 import 'package:openlib/models/book.dart';
@@ -46,17 +42,6 @@ class AnnasArchive {
     return BookFormat.epub;
   }
 
-  // Helper function to safely parse potential NaN/Infinity to prevent crash
-  // This is a generic safeguard for the third type of error you received.
-  dynamic _safeParse(dynamic value) {
-    if (value is String) {
-      if (value.toLowerCase() == 'nan' || value.toLowerCase() == 'infinity') {
-        return null; // Return null or 0 instead of throwing an error
-      }
-      return value;
-    }
-    return value;
-  }
   
   // --------------------------------------------------------------------
   // _parser FUNCTION (Search Results - Fixed nth-of-type issue)

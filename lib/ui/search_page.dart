@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async'; // For Timer/Debounce
-import 'package:http/http.dart' as http; // Required for the API calls (ensure package is installed)
 
 // Project imports:
 import 'package:openlib/ui/components/page_title_widget.dart';
@@ -14,12 +13,7 @@ import 'components/snack_bar_widget.dart';
 // Import the new API Service (adjust path as necessary)
 import 'package:openlib/services/google_suggest_api.dart'; 
 
-import 'package:openlib/state/state.dart'
-    show
-        searchFiltersProvider,
-        typeValues,
-        fileType,
-        sortValues;
+import 'package:openlib/state/state.dart' show searchFiltersProvider;
 
 // ====================================================================
 // Suggestion Providers (New)
@@ -117,7 +111,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) { // WidgetRef is available via ConsumerState
-    final filters = ref.watch(searchFiltersProvider);
     
     // Watch suggestion states
     final suggestions = ref.watch(searchSuggestionProvider); // The list of titles
@@ -185,7 +178,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 5,
                         offset: const Offset(0, 2),
                       ),

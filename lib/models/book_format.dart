@@ -13,7 +13,7 @@ enum BookFormat {
   // ── Helpers ────────────────────────────────────────────────────────
 
   /// Lowercase file extension including the leading dot, e.g. `.pdf`.
-  String get extension => '.${name}';
+  String get extension => '.$name';
 
   /// Human-readable label (e.g. "CBZ", "EPUB").
   String get displayName => name.toUpperCase();

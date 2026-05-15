@@ -2,14 +2,12 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Project imports:
 import 'package:openlib/ui/components/error_widget.dart';
 import 'package:openlib/ui/results_page.dart';
 import 'package:openlib/ui/components/book_grid_item.dart';
-import 'extensions.dart';
 
 import 'package:openlib/state/state.dart'
     show getTrendingBooks, searchFiltersProvider;

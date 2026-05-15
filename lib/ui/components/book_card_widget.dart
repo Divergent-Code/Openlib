@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 // Project imports:
-import 'package:openlib/ui/extensions.dart';
+
 
 String? getFileType(String? info) {
   if (info != null && info.isNotEmpty) {

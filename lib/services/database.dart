@@ -80,8 +80,7 @@ class MyLibraryDb {
             'md5 TEXT PRIMARY KEY, title TEXT, author TEXT, thumbnail TEXT,'
             'publisher TEXT, info TEXT, link TEXT, format TEXT, mirror TEXT,'
             'description TEXT, cachedAt INTEGER)');
-        if (isMobile || true) {
-          // TODO: Breaks getBrowserOptions() on Mac
+        if (isMobile) {
           await db.execute(
               'CREATE TABLE bookposition (fileName TEXT PRIMARY KEY,position TEXT)');
           await db.execute(
@@ -106,13 +105,13 @@ class MyLibraryDb {
               'publisher TEXT, info TEXT, link TEXT, format TEXT, mirror TEXT,'
               'description TEXT, cachedAt INTEGER)');
         }
-        if (isMobile && isTableExist.isEmpty) {
+        if (isTableExist.isEmpty) {
           await db.execute(
-              'CREATE TABLE bookposition (fileName TEXT PRIMARY KEY,position TEXT)');
+              'CREATE TABLE IF NOT EXISTS bookposition (fileName TEXT PRIMARY KEY,position TEXT)');
         }
-        if (isMobile && isbrowserOptionsExist.isEmpty) {
+        if (isbrowserOptionsExist.isEmpty) {
           await db.execute(
-              'CREATE TABLE browserOptions (name TEXT PRIMARY KEY,value TEXT)');
+              'CREATE TABLE IF NOT EXISTS browserOptions (name TEXT PRIMARY KEY,value TEXT)');
         }
       },
       onOpen: (db) async {
@@ -228,14 +227,12 @@ class MyLibraryDb {
   }
 
   Future<void> savePreference(String name, dynamic value) async {
-    switch (value.runtimeType) {
-      case bool:
-        value = value ? 1 : 0;
-        break;
-      case int || String:
-        break;
-      default:
-        throw 'Invalid type';
+    if (value is bool) {
+      value = value ? 1 : 0;
+    } else if (value is int || value is String) {
+      // no transformation needed
+    } else {
+      throw 'Invalid type';
     }
     Database dbInstance = await instance.database;
     await dbInstance.insert(

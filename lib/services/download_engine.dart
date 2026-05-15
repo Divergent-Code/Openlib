@@ -125,13 +125,13 @@ class _DownloadJob {
 // Engine entry point
 // ---------------------------------------------------------------------------
 
-class _EngineParams {
+class EngineParams {
   final SendPort eventPort;
-  const _EngineParams({required this.eventPort});
+  const EngineParams({required this.eventPort});
 }
 
 /// Top-level entry point for the background download isolate.
-void downloadEngineEntry(_EngineParams params) {
+void downloadEngineEntry(EngineParams params) {
   final engine = _DownloadEngine(params.eventPort);
   engine.run();
 }

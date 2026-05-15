@@ -31,7 +31,7 @@ class SearchFiltersWidget extends ConsumerWidget {
                 ),
               ),
               icon: const Icon(Icons.arrow_drop_down),
-              value: dropdownTypeValue,
+              initialValue: dropdownTypeValue,
               items: typeValues.keys
                   .toList()
                   .map<DropdownMenuItem<String>>((String value) {
@@ -63,7 +63,7 @@ class SearchFiltersWidget extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.secondary,
                 ),
               ),
-              value: dropdownSortValue,
+              initialValue: dropdownSortValue,
               items: sortValues.keys
                   .toList()
                   .map<DropdownMenuItem<String>>((String value) {
@@ -95,7 +95,7 @@ class SearchFiltersWidget extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.secondary,
                 ),
               ),
-              value: dropDownFileTypeValue,
+              initialValue: dropDownFileTypeValue,
               items: fileType.map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,

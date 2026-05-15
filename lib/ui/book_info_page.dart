@@ -11,13 +11,9 @@ import 'package:openlib/services/share_book.dart';
 // import 'package:flutter_svg/svg.dart';
 
 // Project imports:
-import 'package:openlib/services/annas_archive.dart' show BookInfoData;
 import 'package:openlib/ui/components/book_info_widget.dart';
 import 'package:openlib/ui/components/action_button_widget.dart';
 import 'package:openlib/ui/components/error_widget.dart';
-import 'package:openlib/ui/components/file_buttons_widget.dart';
-import 'package:openlib/ui/components/snack_bar_widget.dart';
-import 'package:openlib/ui/webview_page.dart';
 import 'package:openlib/state/state.dart' show bookInfoProvider;
 
 class BookInfoPage extends ConsumerWidget {

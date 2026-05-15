@@ -53,7 +53,7 @@ class FileOpenAndDeleteButtons extends ConsumerWidget {
           ),
           TextButton(
             style: ButtonStyle(
-              shape: MaterialStateProperty.all(
+              shape: WidgetStateProperty.all(
                 RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(50.0),
                   side: BorderSide(

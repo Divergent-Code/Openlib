@@ -22,9 +22,9 @@ class DownloadEngineHost {
 
     final receivePort = ReceivePort();
 
-    _isolate = await Isolate.spawn(
+    _isolate = await Isolate.spawn<EngineParams>(
       downloadEngineEntry,
-      _EngineParams(eventPort: receivePort.sendPort),
+      EngineParams(eventPort: receivePort.sendPort),
     );
 
     // First message from the isolate is its command-port SendPort.
@@ -81,11 +81,3 @@ class DownloadEngineHost {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Internal parameter class passed to the isolate entry point.
-// ---------------------------------------------------------------------------
-
-class _EngineParams {
-  final SendPort eventPort;
-  const _EngineParams({required this.eventPort});
-}
